@@ -1,0 +1,22 @@
+# Kconfig.defconfig.series - Nordic Semiconductor nRF9 MCU line
+#
+# Copyright (c) 2018 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+if SOC_SERIES_NRF91X
+
+source "arch/arm/soc/nordic_nrf/nrf91_mlm1/Kconfig.defconfig.nrf91*"
+
+config SOC_SERIES
+	default nrf91_mlm1
+
+config SYS_CLOCK_HW_CYCLES_PER_SEC
+	int
+	default 32768
+
+config SYS_POWER_MANAGEMENT
+	default y
+
+endif # SOC_SERIES_NRF91X

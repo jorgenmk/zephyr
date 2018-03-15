@@ -1,0 +1,39 @@
+# Kconfig.soc - Nordic Semiconductor nRF91 MCU line
+#
+# Copyright (c) 2018 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+config SOC_NRF9120_MLM1
+	depends on SOC_SERIES_NRF91X
+	bool
+	select CPU_CORTEX_M4
+	select CPU_HAS_MPU
+	select SOC_FAMILY_NRF
+	select NRF_RTC_TIMER
+	select CLOCK_CONTROL
+	select CLOCK_CONTROL_NRF5
+	select SYS_POWER_LOW_POWER_STATE_SUPPORTED
+	select SYS_POWER_DEEP_SLEEP_SUPPORTED
+	select XIP
+	select HAS_CMSIS
+	select HAS_NRFX
+
+choice
+prompt "nRF91x MCU Selection"
+depends on SOC_SERIES_NRF91X
+
+config SOC_NRF9120_XXAA_MLM1
+	bool "NRF9120_MLM1"
+	select SOC_NRF9120_MLM1
+
+endchoice
+
+config ARM_MPU_NRF91X
+	bool "Enable MPU on nRF91"
+	depends on CPU_HAS_MPU
+	select ARM_MPU
+	default n
+	help
+	  Enable MPU support on Nordic Semiconductor nRF91x series ICs.

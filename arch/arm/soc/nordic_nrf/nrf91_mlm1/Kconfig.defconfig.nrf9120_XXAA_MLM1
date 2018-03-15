@@ -1,0 +1,20 @@
+# Kconfig.defconfig.nrf9120_XXAA_MLM1 - Nordic Semiconductor nRF9120 MLM1 MCU
+#
+# Copyright (c) 2018 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+
+if SOC_NRF9120_XXAA_MLM1
+
+config SOC
+	string
+	default nRF9120_MLM1
+
+config NUM_IRQS
+	int
+	default 39
+
+endif # SOC_NRF9120_XXAA_MLM1
+

@@ -8,6 +8,8 @@
 #ifndef _NRF_SOC_COMMON_H_
 #define _NRF_SOC_COMMON_H_
 
+#if defined(CONFIG_SOC_SERIES_NRF51X) || defined(CONFIG_SOC_SERIES_NRF52X)
+
 /**
  * @file Common definitions for NRF51/NRF52 family processors.
  *
@@ -60,6 +62,30 @@
 #define NRF52_IRQ_RTC2_IRQn                    36
 #define NRF52_IRQ_I2S_IRQn                     37
 #define NRF52_IRQ_FPU_IRQn                     38
+
+#elif defined(CONFIG_SOC_NRF9120_MLM1)
+
+#define NRF5_IRQ_POWER_CLOCK_IRQn              5
+#define NRF5_IRQ_UART0_IRQn                    8
+#define NRF5_IRQ_SPI0_IRQn                     8
+#define NRF5_IRQ_SPI1_TWI1_IRQn                9
+#define NRF5_IRQ_GPIOTE_IRQn                   10
+#define NRF5_IRQ_ADC_IRQn                      11
+#define NRF5_IRQ_TIMER0_IRQn                   12
+#define NRF5_IRQ_TIMER1_IRQn                   13
+#define NRF5_IRQ_TIMER2_IRQn                   14
+#define NRF5_IRQ_RTC0_IRQn                     15
+#define NRF5_IRQ_WDT_IRQn                      18
+#define NRF5_IRQ_SWI0_IRQn                     21
+#define NRF5_IRQ_RTC1_IRQn                     27
+
+#define NRF91_IRQ_MWU_IRQn                     1
+#define NRF91_IRQ_IPC_IRQn                     25
+
+#else
+#error "Platform not defined."
+#endif
+
 
 /**
  * @file UART baudrate divisors for nRFx family processors.
