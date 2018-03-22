@@ -29,6 +29,9 @@
 #elif defined(CONFIG_SOC_NRF52840_QIAA)
 #define DT_FLASH_SIZE		__SIZE_K(1024)
 #define DT_SRAM_SIZE		__SIZE_K(256)
+#elif defined(CONFIG_SOC_NRF9120_XXAA_MLM1)
+#define DT_FLASH_SIZE		__SIZE_K(1024)
+#define DT_SRAM_SIZE		__SIZE_K(128)
 #else
 #error "Flash and RAM sizes not defined for this chip"
 #endif
