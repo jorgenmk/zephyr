@@ -411,7 +411,7 @@ static struct dev_common_descriptor common_desc = {
 			.bFirstInterface = FIRST_IFACE_CDC_ECM,
 			.bInterfaceCount = 0x02,
 			.bFunctionClass = COMMUNICATION_DEVICE_CLASS,
-			.bFunctionSubClass = CDC_ECM_SUBCLASS,
+			.bFunctionSubClass = ECM_SUBCLASS,
 			.bFunctionProtocol = 0,
 			.iFunction = 0,
 		},
@@ -426,7 +426,7 @@ static struct dev_common_descriptor common_desc = {
 			.bAlternateSetting = 0,
 			.bNumEndpoints = 1,
 			.bInterfaceClass = COMMUNICATION_DEVICE_CLASS,
-			.bInterfaceSubClass = CDC_ECM_SUBCLASS,
+			.bInterfaceSubClass = ECM_SUBCLASS,
 			.bInterfaceProtocol = 0,
 			.iInterface = 0,
 		},
@@ -491,7 +491,7 @@ static struct dev_common_descriptor common_desc = {
 			.bAlternateSetting = 1,
 			.bNumEndpoints = 2,
 			.bInterfaceClass = COMMUNICATION_DEVICE_CLASS_DATA,
-			.bInterfaceSubClass = CDC_ECM_SUBCLASS,
+			.bInterfaceSubClass = ECM_SUBCLASS,
 			.bInterfaceProtocol = 0,
 			.iInterface = 0,
 		},
@@ -649,7 +649,8 @@ void ascii7_to_utf16le(int idx_max, int asci_idx_max, u8_t *buf)
 			    buf[asci_idx_max],
 			    asci_idx_max, i);
 		__ASSERT(buf[asci_idx_max] > 0x1F && buf[asci_idx_max] < 0x7F,
-			 "Only printable ascii-7 characters are allowed in USB string descriptors");
+			 "Only printable ascii-7 characters are allowed in USB "
+			 "string descriptors");
 		buf[i] = 0;
 		buf[i - 1] = buf[asci_idx_max--];
 	}
@@ -658,17 +659,17 @@ void ascii7_to_utf16le(int idx_max, int asci_idx_max, u8_t *buf)
 u8_t *usb_get_device_descriptor(void)
 {
 	ascii7_to_utf16le(MFR_UC_IDX_MAX, MFR_STRING_IDX_MAX,
-			  (u8_t *)common_desc.string_descr.utf16le_mfr.bString);
+		(u8_t *)common_desc.string_descr.utf16le_mfr.bString);
 
 	ascii7_to_utf16le(PRODUCT_UC_IDX_MAX, PRODUCT_STRING_IDX_MAX,
-			  (u8_t *)common_desc.string_descr.utf16le_product.bString);
+		(u8_t *)common_desc.string_descr.utf16le_product.bString);
 
 	ascii7_to_utf16le(SN_UC_IDX_MAX, SN_STRING_IDX_MAX,
-			  (u8_t *)common_desc.string_descr.utf16le_sn.bString);
+		(u8_t *)common_desc.string_descr.utf16le_sn.bString);
 
 #ifdef CONFIG_USB_DEVICE_NETWORK_ECM
 	ascii7_to_utf16le(ECM_MAC_UC_IDX_MAX, ECM_STRING_IDX_MAX,
-			  (u8_t *)common_desc.string_descr.utf16le_mac.bString);
+		(u8_t *)common_desc.string_descr.utf16le_mac.bString);
 #endif
 
 	return (u8_t *) &common_desc;
