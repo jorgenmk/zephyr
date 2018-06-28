@@ -159,6 +159,9 @@ SECTIONS
 #ifdef CONFIG_APPLICATION_MEMORY
 	SECTION_DATA_PROLOGUE(_APP_DATA_SECTION_NAME, (OPTIONAL),)
 	{
+#ifndef CONFIG_XIP
+		MMU_PAGE_ALIGN
+#endif
 		_image_ram_start = .;
 		__app_ram_start = .;
 		__app_data_ram_start = .;
@@ -303,6 +306,7 @@ SECTIONS
 
 #include <linker/kobject.ld>
 
+	MMU_PAGE_ALIGN
 	__data_ram_end = .;
 
 	/* All unused memory also owned by the kernel for heaps */
@@ -322,11 +326,8 @@ SECTIONS
 	{
 	KEEP(*(.spurIsr))
 	KEEP(*(.spurNoErrIsr))
-	__INT_LIST_START__ = .;
-	LONG((__INT_LIST_END__ - __INT_LIST_START__) / __ISR_LIST_SIZEOF)
 	KEEP(*(.intList))
 	KEEP(*(.gnu.linkonce.intList.*))
-	__INT_LIST_END__ = .;
 	} > IDT_LIST
 
 #ifdef CONFIG_X86_MMU

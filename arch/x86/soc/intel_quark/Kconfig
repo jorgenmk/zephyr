@@ -6,7 +6,6 @@
 
 config SOC_FAMILY_QUARK
 	bool
-	default n
 
 if SOC_FAMILY_QUARK
 config SOC_FAMILY
@@ -14,6 +13,6 @@ config SOC_FAMILY
 	default "intel_quark"
 endif
 
-source "arch/x86/soc/intel_quark/*/Kconfig.soc"
+gsource "arch/x86/soc/intel_quark/*/Kconfig.soc"
 
-source "arch/x86/soc/intel_quark/*/Kconfig"
+gsource "arch/x86/soc/intel_quark/*/Kconfig"

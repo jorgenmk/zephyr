@@ -26,11 +26,6 @@ extern "C" {
 /* ARM GPRs are often designated by two different names */
 #define sys_define_gpr_with_alias(name1, name2) union { u32_t name1, name2; }
 
-/* APIs need to support non-byte addressable architectures */
-
-#define OCTET_TO_SIZEOFUNIT(X) (X)
-#define SIZEOFUNIT_TO_OCTET(X) (X)
-
 #ifdef CONFIG_CPU_CORTEX_M
 #include <arch/arm/cortex_m/exc.h>
 #include <arch/arm/cortex_m/irq.h>
@@ -218,7 +213,7 @@ extern "C" {
  * passed to K_THREAD_STACK_DEFINE and related macros.
  *
  * In the case of CONFIG_USERSPACE=y and
- * CONFIG_MPU_REQUIRES_POWER_OF_2_ALIGNMENT, the size will be larger than the
+ * CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT, the size will be larger than the
  * requested size.
  *
  * In all other configurations, the size will be correct.
@@ -247,12 +242,12 @@ extern "C" {
 #ifndef _ASMLANGUAGE
 #include <arch/arm/cortex_m/mpu/arm_mpu.h>
 
-#define K_MEM_PARTITION_P_NA_U_NA	(NO_ACCESS | NOT_EXEC)
-#define K_MEM_PARTITION_P_RW_U_RW	(P_RW_U_RW | NOT_EXEC)
-#define K_MEM_PARTITION_P_RW_U_RO	(P_RW_U_RO | NOT_EXEC)
-#define K_MEM_PARTITION_P_RW_U_NA	(P_RW_U_NA | NOT_EXEC)
-#define K_MEM_PARTITION_P_RO_U_RO	(P_RO_U_RO | NOT_EXEC)
-#define K_MEM_PARTITION_P_RO_U_NA	(P_RO_U_NA | NOT_EXEC)
+#define K_MEM_PARTITION_P_NA_U_NA	(NO_ACCESS | MPU_RASR_XN_Msk)
+#define K_MEM_PARTITION_P_RW_U_RW	(P_RW_U_RW | MPU_RASR_XN_Msk)
+#define K_MEM_PARTITION_P_RW_U_RO	(P_RW_U_RO | MPU_RASR_XN_Msk)
+#define K_MEM_PARTITION_P_RW_U_NA	(P_RW_U_NA | MPU_RASR_XN_Msk)
+#define K_MEM_PARTITION_P_RO_U_RO	(P_RO_U_RO | MPU_RASR_XN_Msk)
+#define K_MEM_PARTITION_P_RO_U_NA	(P_RO_U_NA | MPU_RASR_XN_Msk)
 
 /* Execution-allowed attributes */
 #define K_MEM_PARTITION_P_RWX_U_RWX	(P_RW_U_RW)
@@ -274,7 +269,7 @@ extern "C" {
 		__is_writable__; \
 	})
 #define K_MEM_PARTITION_IS_EXECUTABLE(attr) \
-	(!((attr) & (NOT_EXEC)))
+	(!((attr) & (MPU_RASR_XN_Msk)))
 
 #endif /* _ASMLANGUAGE */
 #define _ARCH_MEM_PARTITION_ALIGN_CHECK(start, size) \
@@ -360,19 +355,16 @@ static inline u32_t _arch_syscall_invoke6(u32_t arg1, u32_t arg2, u32_t arg3,
 	register u32_t r1 __asm__("r1") = arg2;
 	register u32_t r2 __asm__("r2") = arg3;
 	register u32_t r3 __asm__("r3") = arg4;
+	register u32_t r4 __asm__("r4") = arg5;
+	register u32_t r5 __asm__("r5") = arg6;
+	register u32_t r6 __asm__("r6") = call_id;
 
-	__asm__ volatile("sub sp, #16\n"
-			 "str %[a5], [sp, #0]\n"
-			 "str %[a6], [sp, #4]\n"
-			 "str %[cid], [sp, #8]\n"
-			 "svc %[svid]\n"
-			 "add sp, #16\n"
+	__asm__ volatile("svc %[svid]\n"
 			 : "=r"(ret)
-			 : [cid] "r" (call_id),
-			   [svid] "i" (_SVC_CALL_SYSTEM_CALL),
+			 : [svid] "i" (_SVC_CALL_SYSTEM_CALL),
 			   "r" (ret), "r" (r1), "r" (r2), "r" (r3),
-			   [a5] "r" (arg5), [a6] "r" (arg6)
-			 : "ip", "memory");
+			   "r" (r4), "r" (r5), "r" (r6)
+			 : "r8", "memory");
 
 	return ret;
 }
@@ -384,18 +376,15 @@ static inline u32_t _arch_syscall_invoke5(u32_t arg1, u32_t arg2, u32_t arg3,
 	register u32_t r1 __asm__("r1") = arg2;
 	register u32_t r2 __asm__("r2") = arg3;
 	register u32_t r3 __asm__("r3") = arg4;
+	register u32_t r4 __asm__("r4") = arg5;
+	register u32_t r6 __asm__("r6") = call_id;
 
-	__asm__ volatile("sub sp, #16\n"
-			 "str %[a5], [sp, #0]\n"
-			 "str %[cid], [sp, #8]\n"
-			 "svc %[svid]\n"
-			 "add sp, #16\n"
+	__asm__ volatile("svc %[svid]\n"
 			 : "=r"(ret)
-			 : [cid] "r" (call_id),
-			   [svid] "i" (_SVC_CALL_SYSTEM_CALL),
+			 : [svid] "i" (_SVC_CALL_SYSTEM_CALL),
 			   "r" (ret), "r" (r1), "r" (r2), "r" (r3),
-			   [a5] "r" (arg5)
-			 : "ip", "memory");
+			   "r" (r4), "r" (r6)
+			 : "r8", "memory");
 
 	return ret;
 }
@@ -407,16 +396,14 @@ static inline u32_t _arch_syscall_invoke4(u32_t arg1, u32_t arg2, u32_t arg3,
 	register u32_t r1 __asm__("r1") = arg2;
 	register u32_t r2 __asm__("r2") = arg3;
 	register u32_t r3 __asm__("r3") = arg4;
+	register u32_t r6 __asm__("r6") = call_id;
 
-	__asm__ volatile("sub sp, #16\n"
-			 "str %[cid], [sp,#8]\n"
-			 "svc %[svid]\n"
-			 "add sp, #16\n"
+	__asm__ volatile("svc %[svid]\n"
 			 : "=r"(ret)
-			 : [cid] "r" (call_id),
-			   [svid] "i" (_SVC_CALL_SYSTEM_CALL),
-			   "r" (ret), "r" (r1), "r" (r2), "r" (r3)
-			 : "ip", "memory");
+			 : [svid] "i" (_SVC_CALL_SYSTEM_CALL),
+			   "r" (ret), "r" (r1), "r" (r2), "r" (r3),
+			   "r" (r6)
+			 : "r8", "memory");
 
 	return ret;
 }
@@ -427,16 +414,13 @@ static inline u32_t _arch_syscall_invoke3(u32_t arg1, u32_t arg2, u32_t arg3,
 	register u32_t ret __asm__("r0") = arg1;
 	register u32_t r1 __asm__("r1") = arg2;
 	register u32_t r2 __asm__("r2") = arg3;
+	register u32_t r6 __asm__("r6") = call_id;
 
-	__asm__ volatile("sub sp, #16\n"
-			 "str %[cid], [sp,#8]\n"
-			 "svc %[svid]\n"
-			 "add sp, #16\n"
+	__asm__ volatile("svc %[svid]\n"
 			 : "=r"(ret)
-			 : [cid] "r" (call_id),
-			   [svid] "i" (_SVC_CALL_SYSTEM_CALL),
-			   "r" (ret), "r" (r1), "r" (r2)
-			 : "r3", "ip", "memory");
+			 : [svid] "i" (_SVC_CALL_SYSTEM_CALL),
+			   "r" (ret), "r" (r1), "r" (r2), "r" (r6)
+			 : "r8", "memory", "r3");
 
 	return ret;
 }
@@ -445,17 +429,13 @@ static inline u32_t _arch_syscall_invoke2(u32_t arg1, u32_t arg2, u32_t call_id)
 {
 	register u32_t ret __asm__("r0") = arg1;
 	register u32_t r1 __asm__("r1") = arg2;
+	register u32_t r6 __asm__("r6") = call_id;
 
-	__asm__ volatile(
-			 "sub sp, #16\n"
-			 "str %[cid], [sp,#8]\n"
-			 "svc %[svid]\n"
-			 "add sp, #16\n"
+	__asm__ volatile("svc %[svid]\n"
 			 : "=r"(ret)
-			 : [cid] "r" (call_id),
-			   [svid] "i" (_SVC_CALL_SYSTEM_CALL),
-			   "r" (ret), "r" (r1)
-			 : "r2", "r3", "ip", "memory");
+			 : [svid] "i" (_SVC_CALL_SYSTEM_CALL),
+			   "r" (ret), "r" (r1), "r" (r6)
+			 : "r8", "memory", "r2", "r3");
 
 	return ret;
 }
@@ -463,34 +443,26 @@ static inline u32_t _arch_syscall_invoke2(u32_t arg1, u32_t arg2, u32_t call_id)
 static inline u32_t _arch_syscall_invoke1(u32_t arg1, u32_t call_id)
 {
 	register u32_t ret __asm__("r0") = arg1;
+	register u32_t r6 __asm__("r6") = call_id;
 
-	__asm__ volatile(
-			 "sub sp, #16\n"
-			 "str %[cid], [sp,#8]\n"
-			 "svc %[svid]\n"
-			 "add sp, #16\n"
+	__asm__ volatile("svc %[svid]\n"
 			 : "=r"(ret)
-			 : [cid] "r" (call_id),
-			   [svid] "i" (_SVC_CALL_SYSTEM_CALL),
-			   "r" (ret)
-			 : "r1", "r2", "r3", "ip", "memory");
+			 : [svid] "i" (_SVC_CALL_SYSTEM_CALL),
+			   "r" (ret), "r" (r6)
+			 : "r8", "memory", "r1", "r2", "r3");
 	return ret;
 }
 
 static inline u32_t _arch_syscall_invoke0(u32_t call_id)
 {
 	register u32_t ret __asm__("r0");
+	register u32_t r6 __asm__("r6") = call_id;
 
-	__asm__ volatile(
-			 "sub sp, #16\n"
-			 "str %[cid], [sp,#8]\n"
-			 "svc %[svid]\n"
-			 "add sp, #16\n"
+	__asm__ volatile("svc %[svid]\n"
 			 : "=r"(ret)
-			 : [cid] "r" (call_id),
-			   [svid] "i" (_SVC_CALL_SYSTEM_CALL),
-			   "r" (ret)
-			 : "r1", "r2", "r3", "ip", "memory");
+			 : [svid] "i" (_SVC_CALL_SYSTEM_CALL),
+			   "r" (ret), "r" (r6)
+			 : "r8", "memory", "r1", "r2", "r3");
 
 	return ret;
 }

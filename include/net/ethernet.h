@@ -34,6 +34,10 @@ extern "C" {
  * @{
  */
 
+struct net_eth_addr {
+	u8_t addr[6];
+};
+
 #define NET_ETH_HDR(pkt) ((struct net_eth_hdr *)net_pkt_ll(pkt))
 
 #define NET_ETH_PTYPE_ARP		0x0806
@@ -43,15 +47,57 @@ extern "C" {
 
 #define NET_ETH_MINIMAL_FRAME_SIZE	60
 
-enum eth_hw_caps {
+enum ethernet_hw_caps {
 	/** TX Checksum offloading supported */
-	ETH_HW_TX_CHKSUM_OFFLOAD  = BIT(0),
+	ETHERNET_HW_TX_CHKSUM_OFFLOAD	= BIT(0),
 
 	/** RX Checksum offloading supported */
-	ETH_HW_RX_CHKSUM_OFFLOAD  = BIT(1),
+	ETHERNET_HW_RX_CHKSUM_OFFLOAD	= BIT(1),
 
 	/** VLAN supported */
-	ETH_HW_VLAN  = BIT(2),
+	ETHERNET_HW_VLAN		= BIT(2),
+
+	/** Enabling/disabling auto negotiation supported */
+	ETHERNET_AUTO_NEGOTIATION_SET	= BIT(3),
+
+	/** 10 Mbits link supported */
+	ETHERNET_LINK_10BASE_T		= BIT(4),
+
+	/** 100 Mbits link supported */
+	ETHERNET_LINK_100BASE_T		= BIT(5),
+
+	/** 1 Gbits link supported */
+	ETHERNET_LINK_1000BASE_T	= BIT(6),
+
+	/** Changing duplex (half/full) supported */
+	ETHERNET_DUPLEX_SET		= BIT(7),
+
+	/** IEEE 802.1AS (gPTP) clock supported */
+	ETHERNET_PTP			= BIT(8),
+};
+
+enum ethernet_config_type {
+	ETHERNET_CONFIG_TYPE_AUTO_NEG,
+	ETHERNET_CONFIG_TYPE_LINK,
+	ETHERNET_CONFIG_TYPE_DUPLEX,
+	ETHERNET_CONFIG_TYPE_MAC_ADDRESS,
+};
+
+struct ethernet_config {
+/** @cond ignore */
+	union {
+		bool auto_negotiation;
+		bool full_duplex;
+
+		struct {
+			bool link_10bt;
+			bool link_100bt;
+			bool link_1000bt;
+		} l;
+
+		struct net_eth_addr mac_address;
+	};
+/* @endcond */
 };
 
 struct ethernet_api {
@@ -61,19 +107,36 @@ struct ethernet_api {
 	 */
 	struct net_if_api iface_api;
 
-	/** Get the device capabilities */
-	enum eth_hw_caps (*get_capabilities)(struct device *dev);
+#if defined(CONFIG_NET_STATISTICS_ETHERNET)
+	/** Collect optional ethernet specific statistics. This pointer
+	 * should be set by driver if statistics needs to be collected
+	 * for that driver.
+	 */
+	struct net_stats_eth *stats;
+#endif
 
+	/** Get the device capabilities */
+	enum ethernet_hw_caps (*get_capabilities)(struct device *dev);
+
+	/** Set specific hardware configuration */
+	int (*set_config)(struct device *dev,
+			  enum ethernet_config_type type,
+			  const struct ethernet_config *config);
+
+#if defined(CONFIG_NET_VLAN)
 	/** The IP stack will call this function when a VLAN tag is enabled
 	 * or disabled. If enable is set to true, then the VLAN tag was added,
 	 * if it is false then the tag was removed. The driver can utilize
 	 * this information if needed.
 	 */
-	int (*vlan_setup)(struct net_if *iface, u16_t tag, bool enable);
-};
+	int (*vlan_setup)(struct device *dev, struct net_if *iface,
+			  u16_t tag, bool enable);
+#endif /* CONFIG_NET_VLAN */
 
-struct net_eth_addr {
-	u8_t addr[6];
+#if defined(CONFIG_PTP_CLOCK)
+	/** Return ptp_clock device that is tied to this ethernet device */
+	struct device *(*get_ptp_clock)(struct device *dev);
+#endif /* CONFIG_PTP_CLOCK */
 };
 
 struct net_eth_hdr {
@@ -109,16 +172,32 @@ struct ethernet_context {
 	 * of network interfaces.
 	 */
 	ATOMIC_DEFINE(interfaces, NET_VLAN_MAX_COUNT);
+#endif
 
+	struct {
+		/** Carrier ON/OFF handler worker. This is used to create
+		 * network interface UP/DOWN event when ethernet L2 driver
+		 * notices carrier ON/OFF situation. We must not create another
+		 * network management event from inside management handler thus
+		 * we use worker thread to trigger the UP/DOWN event.
+		 */
+		struct k_work work;
+
+		/** Network interface that is detecting carrier ON/OFF event.
+		 */
+		struct net_if *iface;
+	} carrier_mgmt;
+
+#if defined(CONFIG_NET_VLAN)
 	/** Flag that tells whether how many VLAN tags are enabled for this
 	 * context. The same information can be dug from the vlan array but
 	 * this saves some time in RX path.
 	 */
 	s8_t vlan_enabled;
+#endif
 
 	/** Is this context already initialized */
 	bool is_init;
-#endif
 };
 
 #define ETHERNET_L2_CTX_TYPE	struct ethernet_context
@@ -199,7 +278,7 @@ void net_eth_ipv6_mcast_to_mac_addr(const struct in6_addr *ipv6_addr,
  * @return Hardware capabilities
  */
 static inline
-enum eth_hw_caps net_eth_get_hw_capabilities(struct net_if *iface)
+enum ethernet_hw_caps net_eth_get_hw_capabilities(struct net_if *iface)
 {
 	const struct ethernet_api *eth =
 		net_if_get_device(iface)->driver_api;
@@ -307,7 +386,6 @@ struct net_if *net_eth_get_vlan_iface(struct net_if *iface, u16_t tag)
  *
  * @param ctx Ethernet context
  * @param pkt Network packet
- * @param frag Ethernet header in packet
  * @param ptype Upper level protocol type (in network byte order)
  * @param src Source ethernet address
  * @param dst Destination ethernet address
@@ -316,10 +394,35 @@ struct net_if *net_eth_get_vlan_iface(struct net_if *iface, u16_t tag)
  */
 struct net_eth_hdr *net_eth_fill_header(struct ethernet_context *ctx,
 					struct net_pkt *pkt,
-					struct net_buf *frag,
 					u32_t ptype,
 					u8_t *src,
 					u8_t *dst);
+
+/**
+ * @brief Inform ethernet L2 driver that ethernet carrier is detected.
+ * This happens when cable is connected.
+ *
+ * @param iface Network interface
+ */
+void net_eth_carrier_on(struct net_if *iface);
+
+/**
+ * @brief Inform ethernet L2 driver that ethernet carrier was lost.
+ * This happens when cable is disconnected.
+ *
+ * @param iface Network interface
+ */
+void net_eth_carrier_off(struct net_if *iface);
+
+/**
+ * @brief Return PTP clock that is tied to this ethernet network interface.
+ *
+ * @param iface Network interface
+ *
+ * @return Pointer to PTP clock if found, NULL if not found or if this
+ * ethernet interface does not support PTP.
+ */
+struct device *net_eth_get_ptp_clock(struct net_if *iface);
 
 #ifdef __cplusplus
 }

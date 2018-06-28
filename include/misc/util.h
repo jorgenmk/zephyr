@@ -14,10 +14,6 @@
 #ifndef _UTIL__H_
 #define _UTIL__H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef _ASMLANGUAGE
 
 #include <zephyr/types.h>
@@ -41,12 +37,18 @@ extern "C" {
 		!__builtin_types_compatible_p(__typeof__(array), \
 					      __typeof__(&(array)[0])))
 
+#if defined(__cplusplus)
+template < class T, size_t N >
+constexpr size_t ARRAY_SIZE(T(&)[N]) { return N; }
+
+#else
 /* Evaluates to number of elements in an array; compile error if not
  * an array (e.g. pointer)
  */
 #define ARRAY_SIZE(array) \
 	((unsigned long) (IS_ARRAY(array) + \
 		(sizeof(array) / sizeof((array)[0]))))
+#endif
 
 /* Evaluates to 1 if ptr is part of array, 0 otherwise; compile error if
  * "array" argument is not an array (e.g. "ptr" and "array" mixed up)
@@ -239,6 +241,27 @@ static inline s64_t arithmetic_shift_right(s64_t value, u8_t shift)
 #define UTIL_DEC_17 16
 #define UTIL_DEC_18 17
 #define UTIL_DEC_19 18
+#define UTIL_DEC_20 19
+#define UTIL_DEC_21 20
+#define UTIL_DEC_22 21
+#define UTIL_DEC_23 22
+#define UTIL_DEC_24 23
+#define UTIL_DEC_25 24
+#define UTIL_DEC_26 25
+#define UTIL_DEC_27 26
+#define UTIL_DEC_28 27
+#define UTIL_DEC_29 28
+#define UTIL_DEC_30 29
+#define UTIL_DEC_31 30
+#define UTIL_DEC_32 31
+#define UTIL_DEC_33 32
+#define UTIL_DEC_34 33
+#define UTIL_DEC_35 34
+#define UTIL_DEC_36 35
+#define UTIL_DEC_37 36
+#define UTIL_DEC_38 37
+#define UTIL_DEC_39 38
+#define UTIL_DEC_40 39
 
 #define UTIL_CHECK_N(x, n, ...) n
 #define UTIL_CHECK(...) UTIL_CHECK_N(__VA_ARGS__, 0,)
@@ -301,9 +324,5 @@ static inline s64_t arithmetic_shift_right(s64_t value, u8_t shift)
  * behavior.
  */
 #define UTIL_LISTIFY(LEN, F, F_ARG) UTIL_EVAL(UTIL_REPEAT(LEN, F, F_ARG))
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _UTIL__H_ */

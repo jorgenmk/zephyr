@@ -29,12 +29,13 @@
 #include <net/ethernet.h>
 
 #include "eth_native_posix_priv.h"
+#include "ethernet/eth_stats.h"
 
 #if defined(CONFIG_NET_L2_ETHERNET)
 #define _ETH_MTU 1500
 #endif
 
-#define NET_BUF_TIMEOUT MSEC(10)
+#define NET_BUF_TIMEOUT K_MSEC(100)
 
 #if defined(CONFIG_NET_VLAN)
 #define ETH_HDR_LEN sizeof(struct net_eth_vlan_hdr)
@@ -52,6 +53,10 @@ struct eth_context {
 	int dev_fd;
 	bool init_done;
 	bool status;
+
+#if defined(CONFIG_NET_STATISTICS_ETHERNET)
+	struct net_stats_eth stats;
+#endif
 };
 
 NET_STACK_DEFINE(RX_ZETH, eth_rx_stack,
@@ -86,11 +91,25 @@ static int eth_send(struct net_if *iface, struct net_pkt *pkt)
 		frag = frag->frags;
 	}
 
-	net_pkt_unref(pkt);
+	eth_stats_update_bytes_tx(iface, count);
+	eth_stats_update_pkts_tx(iface);
+
+	if (IS_ENABLED(CONFIG_NET_STATISTICS_ETHERNET)) {
+		if (net_eth_is_addr_broadcast(
+			    &((struct net_eth_hdr *)NET_ETH_HDR(pkt))->dst)) {
+			eth_stats_update_broadcast_tx(iface);
+		} else if (net_eth_is_addr_multicast(
+				   &((struct net_eth_hdr *)
+						NET_ETH_HDR(pkt))->dst)) {
+			eth_stats_update_multicast_tx(iface);
+		}
+	}
 
 	SYS_LOG_DBG("Send pkt %p len %d", pkt, count);
 
 	eth_write_data(ctx->dev_fd, ctx->send, count);
+
+	net_pkt_unref(pkt);
 
 	return 0;
 }
@@ -131,8 +150,11 @@ static inline struct net_if *get_iface(struct eth_context *ctx,
 static int read_data(struct eth_context *ctx, int fd)
 {
 	u16_t vlan_tag = NET_VLAN_TAG_UNSPEC;
+	int count = 0;
+	struct net_if *iface;
 	struct net_pkt *pkt;
 	struct net_buf *frag;
+	u32_t pkt_len;
 	int ret;
 
 	ret = eth_read_data(fd, ctx->recv, sizeof(ctx->recv));
@@ -146,8 +168,6 @@ static int read_data(struct eth_context *ctx, int fd)
 	}
 
 	do {
-		int count = 0;
-
 		frag = net_pkt_get_frag(pkt, NET_BUF_TIMEOUT);
 		if (!frag) {
 			net_pkt_unref(pkt);
@@ -176,9 +196,26 @@ static int read_data(struct eth_context *ctx, int fd)
 	}
 #endif
 
-	SYS_LOG_DBG("Recv pkt %p len %d", pkt, net_pkt_get_len(pkt));
+	iface = get_iface(ctx, vlan_tag);
+	pkt_len = net_pkt_get_len(pkt);
 
-	if (net_recv_data(get_iface(ctx, vlan_tag), pkt) < 0) {
+	eth_stats_update_bytes_rx(iface, pkt_len);
+	eth_stats_update_pkts_rx(iface);
+
+	if (IS_ENABLED(CONFIG_NET_STATISTICS_ETHERNET)) {
+		if (net_eth_is_addr_broadcast(
+			    &((struct net_eth_hdr *)NET_ETH_HDR(pkt))->dst)) {
+			eth_stats_update_broadcast_rx(iface);
+		} else if (net_eth_is_addr_multicast(
+				   &((struct net_eth_hdr *)
+				    NET_ETH_HDR(pkt))->dst)) {
+			eth_stats_update_multicast_rx(iface);
+		}
+	}
+
+	SYS_LOG_DBG("Recv pkt %p len %d", pkt, pkt_len);
+
+	if (net_recv_data(iface, pkt) < 0) {
 		net_pkt_unref(pkt);
 	}
 
@@ -199,7 +236,7 @@ static void eth_rx(struct eth_context *ctx)
 			}
 		}
 
-		k_sleep(MSEC(50));
+		k_sleep(K_MSEC(50));
 	}
 }
 
@@ -269,21 +306,22 @@ static void eth_iface_init(struct net_if *iface)
 	}
 }
 
-#if defined(CONFIG_NET_VLAN)
-static enum eth_hw_caps eth_capabilities(struct device *dev)
+static
+enum ethernet_hw_caps eth_posix_native_get_capabilities(struct device *dev)
 {
 	ARG_UNUSED(dev);
 
-	return ETH_HW_VLAN;
+	return ETHERNET_HW_VLAN;
 }
-#endif
 
 static const struct ethernet_api eth_if_api = {
 	.iface_api.init = eth_iface_init,
 	.iface_api.send = eth_send,
 
-#if defined(CONFIG_NET_VLAN)
-	.get_capabilities = eth_capabilities,
+	.get_capabilities = eth_posix_native_get_capabilities,
+
+#if defined(CONFIG_NET_STATISTICS_ETHERNET)
+	.stats = &eth_context_data.stats,
 #endif
 };
 

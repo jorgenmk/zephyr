@@ -673,12 +673,12 @@ static void sc_derive_link_key(struct bt_smp *smp)
 		bt_keys_link_key_clear(link_key);
 	}
 
-	atomic_set_bit(link_key->flags, BT_LINK_KEY_SC);
+	link_key->flags |= BT_LINK_KEY_SC;
 
-	if (atomic_test_bit(conn->le.keys->flags, BT_KEYS_AUTHENTICATED)) {
-		atomic_set_bit(link_key->flags, BT_LINK_KEY_AUTHENTICATED);
+	if (conn->le.keys->flags & BT_KEYS_AUTHENTICATED) {
+		link_key->flags |= BT_LINK_KEY_AUTHENTICATED;
 	} else {
-		atomic_clear_bit(link_key->flags, BT_LINK_KEY_AUTHENTICATED);
+		link_key->flags &= ~BT_LINK_KEY_AUTHENTICATED;
 	}
 }
 
@@ -694,23 +694,26 @@ static void smp_br_reset(struct bt_smp_br *smp)
 
 static void smp_pairing_br_complete(struct bt_smp_br *smp, u8_t status)
 {
+	struct bt_conn *conn = smp->chan.chan.conn;
+	struct bt_keys *keys;
+	bt_addr_le_t addr;
+
 	BT_DBG("status 0x%x", status);
 
+	/* For dualmode devices LE address is same as BR/EDR address
+	 * and is of public type.
+	 */
+	bt_addr_copy(&addr.a, &conn->br.dst);
+	addr.type = BT_ADDR_LE_PUBLIC;
+	keys = bt_keys_find_addr(&addr);
+
 	if (status) {
-		struct bt_conn *conn = smp->chan.chan.conn;
-		struct bt_keys *keys;
-		bt_addr_le_t addr;
-
-		/*
-		 * For dualmode devices LE address is same as BR/EDR address
-		 * and is of public type.
-		 */
-		bt_addr_copy(&addr.a, &conn->br.dst);
-		addr.type = BT_ADDR_LE_PUBLIC;
-
-		keys = bt_keys_find_addr(&addr);
 		if (keys) {
 			bt_keys_clear(keys);
+		}
+	} else if (atomic_test_bit(smp->flags, SMP_FLAG_BOND)) {
+		if (keys) {
+			bt_keys_store(keys);
 		}
 	}
 
@@ -832,14 +835,14 @@ static void smp_br_derive_ltk(struct bt_smp_br *smp)
 		return;
 	}
 
-	keys->ltk.ediv = 0;
-	keys->ltk.rand = 0;
+	memset(keys->ltk.ediv, 0, sizeof(keys->ltk.ediv));
+	memset(keys->ltk.rand, 0, sizeof(keys->ltk.rand));
 	keys->enc_size = smp->enc_key_size;
 
-	if (atomic_test_bit(link_key->flags, BT_LINK_KEY_AUTHENTICATED)) {
-		atomic_set_bit(keys->flags, BT_KEYS_AUTHENTICATED);
+	if (link_key->flags & BT_LINK_KEY_AUTHENTICATED) {
+		keys->flags |= BT_KEYS_AUTHENTICATED;
 	} else {
-		atomic_clear_bit(keys->flags, BT_KEYS_AUTHENTICATED);
+		keys->flags &= ~BT_KEYS_AUTHENTICATED;
 	}
 
 	BT_DBG("LTK derived from LinkKey");
@@ -1469,8 +1472,8 @@ static void smp_pairing_complete(struct bt_smp *smp, u8_t status)
 {
 	BT_DBG("status 0x%x", status);
 
-#if defined(CONFIG_BT_BREDR)
 	if (!status) {
+#if defined(CONFIG_BT_BREDR)
 		/*
 		 * Don't derive if Debug Keys are used.
 		 * TODO should we allow this if BR/EDR is already connected?
@@ -1479,8 +1482,11 @@ static void smp_pairing_complete(struct bt_smp *smp, u8_t status)
 		    !atomic_test_bit(smp->flags, SMP_FLAG_SC_DEBUG_KEY)) {
 			sc_derive_link_key(smp);
 		}
-	}
 #endif /* CONFIG_BT_BREDR */
+		if (atomic_test_bit(smp->flags, SMP_FLAG_BOND)) {
+			bt_keys_store(smp->chan.chan.conn->le.keys);
+		}
+	}
 
 	smp_reset(smp);
 }
@@ -1670,8 +1676,8 @@ static void legacy_distribute_keys(struct bt_smp *smp)
 		struct bt_smp_master_ident *ident;
 		struct net_buf *buf;
 		u8_t key[16];
-		u64_t rand;
-		u16_t ediv;
+		u8_t rand[8];
+		u8_t ediv[2];
 
 		bt_rand(key, sizeof(key));
 		bt_rand(&rand, sizeof(rand));
@@ -1703,8 +1709,8 @@ static void legacy_distribute_keys(struct bt_smp *smp)
 		}
 
 		ident = net_buf_add(buf, sizeof(*ident));
-		ident->rand = rand;
-		ident->ediv = ediv;
+		memcpy(ident->rand, rand, sizeof(ident->rand));
+		memcpy(ident->ediv, ediv, sizeof(ident->ediv));
 
 		smp_send(smp, buf, ident_sent);
 
@@ -1713,8 +1719,9 @@ static void legacy_distribute_keys(struct bt_smp *smp)
 
 			memcpy(keys->slave_ltk.val, key,
 			       sizeof(keys->slave_ltk.val));
-			keys->slave_ltk.rand = rand;
-			keys->slave_ltk.ediv = ediv;
+			memcpy(keys->slave_ltk.rand, rand, sizeof(rand));
+			memcpy(keys->slave_ltk.ediv, ediv,
+			       sizeof(keys->slave_ltk.ediv));
 		}
 	}
 }
@@ -1880,7 +1887,7 @@ static u8_t legacy_request_tk(struct bt_smp *smp)
 	 * keys with unauthenticated ones.
 	  */
 	keys = bt_keys_find_addr(&conn->le.dst);
-	if (keys && atomic_test_bit(keys->flags, BT_KEYS_AUTHENTICATED) &&
+	if (keys && (keys->flags & BT_KEYS_AUTHENTICATED) &&
 	    smp->method == JUST_WORKS) {
 		BT_ERR("JustWorks failed, authenticated keys present");
 		return BT_SMP_ERR_UNSPECIFIED;
@@ -1992,6 +1999,8 @@ static u8_t legacy_pairing_random(struct bt_smp *smp)
 
 	if (IS_ENABLED(CONFIG_BT_CENTRAL) &&
 	    conn->role == BT_HCI_ROLE_MASTER) {
+		u8_t ediv[2], rand[8];
+
 		/* No need to store master STK */
 		err = smp_s1(smp->tk, smp->rrnd, smp->prnd, tmp);
 		if (err) {
@@ -1999,7 +2008,9 @@ static u8_t legacy_pairing_random(struct bt_smp *smp)
 		}
 
 		/* Rand and EDiv are 0 for the STK */
-		if (bt_conn_le_start_encryption(conn, 0, 0, tmp,
+		memset(ediv, 0, sizeof(ediv));
+		memset(rand, 0, sizeof(rand));
+		if (bt_conn_le_start_encryption(conn, rand, ediv, tmp,
 						get_encryption_key_size(smp))) {
 			BT_ERR("Failed to start encryption");
 			return BT_SMP_ERR_UNSPECIFIED;
@@ -2117,8 +2128,8 @@ static u8_t smp_master_ident(struct bt_smp *smp, struct net_buf *buf)
 			return BT_SMP_ERR_UNSPECIFIED;
 		}
 
-		keys->ltk.ediv = req->ediv;
-		keys->ltk.rand = req->rand;
+		memcpy(keys->ltk.ediv, req->ediv, sizeof(keys->ltk.ediv));
+		memcpy(keys->ltk.rand, req->rand, sizeof(req->rand));
 
 		smp->remote_dist &= ~BT_SMP_DIST_ENC_KEY;
 	}
@@ -3135,7 +3146,7 @@ static u8_t smp_security_request(struct bt_smp *smp, struct net_buf *buf)
 
 	/* if MITM required key must be authenticated */
 	if ((auth & BT_SMP_AUTH_MITM) &&
-	    !atomic_test_bit(conn->le.keys->flags, BT_KEYS_AUTHENTICATED)) {
+	    !(conn->le.keys->flags & BT_KEYS_AUTHENTICATED)) {
 		if (get_io_capa() != BT_SMP_IO_NO_INPUT_OUTPUT) {
 			BT_INFO("New auth requirements: 0x%x, repairing",
 				auth);
@@ -3319,6 +3330,7 @@ static u8_t smp_dhkey_check(struct bt_smp *smp, struct net_buf *buf)
 	if (IS_ENABLED(CONFIG_BT_CENTRAL) &&
 	    smp->chan.chan.conn->role == BT_HCI_ROLE_MASTER) {
 		u8_t e[16], r[16], enc_size;
+		u8_t ediv[2], rand[8];
 
 		memset(r, 0, sizeof(r));
 
@@ -3347,7 +3359,10 @@ static u8_t smp_dhkey_check(struct bt_smp *smp, struct net_buf *buf)
 
 		enc_size = get_encryption_key_size(smp);
 
-		if (bt_conn_le_start_encryption(smp->chan.chan.conn, 0, 0,
+		/* Rand and EDiv are 0 */
+		memset(ediv, 0, sizeof(ediv));
+		memset(rand, 0, sizeof(rand));
+		if (bt_conn_le_start_encryption(smp->chan.chan.conn, rand, ediv,
 						smp->tk, enc_size) < 0) {
 			return BT_SMP_ERR_UNSPECIFIED;
 		}
@@ -3523,8 +3538,7 @@ static void bt_smp_disconnected(struct bt_l2cap_chan *chan)
 		 * If debug keys were used for pairing remove them.
 		 * No keys indicate no bonding so free keys storage.
 		 */
-		if (!keys->keys ||
-		    atomic_test_bit(keys->flags, BT_KEYS_DEBUG)) {
+		if (!keys->keys || (keys->flags & BT_KEYS_DEBUG)) {
 			bt_keys_clear(keys);
 		}
 	}
@@ -4344,7 +4358,7 @@ void bt_smp_update_keys(struct bt_conn *conn)
 
 	/* mark keys as debug */
 	if (atomic_test_bit(smp->flags, SMP_FLAG_SC_DEBUG_KEY)) {
-		atomic_set_bit(conn->le.keys->flags, BT_KEYS_DEBUG);
+		conn->le.keys->flags |= BT_KEYS_DEBUG;
 	}
 
 	/*
@@ -4356,12 +4370,12 @@ void bt_smp_update_keys(struct bt_conn *conn)
 	case PASSKEY_DISPLAY:
 	case PASSKEY_INPUT:
 	case PASSKEY_CONFIRM:
-		atomic_set_bit(conn->le.keys->flags, BT_KEYS_AUTHENTICATED);
+		conn->le.keys->flags |= BT_KEYS_AUTHENTICATED;
 		break;
 	case JUST_WORKS:
 	default:
 		/* unauthenticated key, clear it */
-		atomic_clear_bit(conn->le.keys->flags, BT_KEYS_AUTHENTICATED);
+		conn->le.keys->flags &= ~BT_KEYS_AUTHENTICATED;
 		break;
 	}
 
@@ -4377,8 +4391,10 @@ void bt_smp_update_keys(struct bt_conn *conn)
 		bt_keys_add_type(conn->le.keys, BT_KEYS_LTK_P256);
 		memcpy(conn->le.keys->ltk.val, smp->tk,
 		       sizeof(conn->le.keys->ltk.val));
-		conn->le.keys->ltk.rand = 0;
-		conn->le.keys->ltk.ediv = 0;
+		memset(conn->le.keys->ltk.rand, 0,
+		       sizeof(conn->le.keys->ltk.rand));
+		memset(conn->le.keys->ltk.ediv, 0,
+		       sizeof(conn->le.keys->ltk.ediv));
 	}
 }
 

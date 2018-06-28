@@ -13,7 +13,7 @@
  */
 
 #define SYS_LOG_DOMAIN "dev/eth_mcux"
-#define SYS_LOG_LEVEL SYS_LOG_LEVEL_DEBUG
+#define SYS_LOG_LEVEL CONFIG_SYS_LOG_ETHERNET_LEVEL
 #include <logging/sys_log.h>
 
 #include <board.h>
@@ -286,12 +286,14 @@ static void eth_mcux_phy_event(struct eth_context *context)
 					  kENET_MiiReadValidFrame);
 			context->link_up = link_up;
 			context->phy_state = eth_mcux_phy_state_read_duplex;
+			net_eth_carrier_on(context->iface);
 		} else if (!link_up && context->link_up) {
 			SYS_LOG_INF("Link down");
 			context->link_up = link_up;
 			k_delayed_work_submit(&context->delayed_phy_work,
 					      CONFIG_ETH_MCUX_PHY_TICK_MS);
 			context->phy_state = eth_mcux_phy_state_wait;
+			net_eth_carrier_off(context->iface);
 		} else {
 			k_delayed_work_submit(&context->delayed_phy_work,
 					      CONFIG_ETH_MCUX_PHY_TICK_MS);
@@ -643,7 +645,7 @@ static void net_if_mcast_cb(struct net_if *iface,
 }
 #endif /* CONFIG_NET_IPV6 */
 
-static void eth_0_iface_init(struct net_if *iface)
+static void eth_iface_init(struct net_if *iface)
 {
 	struct device *dev = net_if_get_device(iface);
 	struct eth_context *context = dev->driver_data;
@@ -664,22 +666,19 @@ static void eth_0_iface_init(struct net_if *iface)
 	ethernet_init(iface);
 }
 
-#if defined(CONFIG_NET_VLAN)
-static enum eth_hw_caps eth_capabilities(struct device *dev)
+static enum ethernet_hw_caps eth_mcux_get_capabilities(struct device *dev)
 {
 	ARG_UNUSED(dev);
 
-	return ETH_HW_VLAN;
+	return ETHERNET_HW_VLAN | ETHERNET_LINK_10BASE_T |
+		ETHERNET_LINK_100BASE_T;
 }
-#endif
 
-static const struct ethernet_api api_funcs_0 = {
-	.iface_api.init = eth_0_iface_init,
+static const struct ethernet_api api_funcs = {
+	.iface_api.init = eth_iface_init,
 	.iface_api.send = eth_tx,
 
-#if defined(CONFIG_NET_VLAN)
-	.get_capabilities = eth_capabilities,
-#endif
+	.get_capabilities = eth_mcux_get_capabilities,
 };
 
 static void eth_mcux_rx_isr(void *p)
@@ -728,7 +727,7 @@ static struct eth_context eth_0_context = {
 
 ETH_NET_DEVICE_INIT(eth_mcux_0, CONFIG_ETH_MCUX_0_NAME, eth_0_init,
 		    &eth_0_context, NULL, CONFIG_ETH_INIT_PRIORITY,
-		    &api_funcs_0, 1500);
+		    &api_funcs, 1500);
 
 static void eth_0_config_func(void)
 {

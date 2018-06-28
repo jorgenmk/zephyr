@@ -144,11 +144,11 @@ static inline enum net_verdict handle_echo_request(struct net_pkt *pkt)
 #endif /* CONFIG_NET_DEBUG_ICMPV4 */
 
 	if (net_send_data(pkt) < 0) {
-		net_stats_update_icmp_drop();
+		net_stats_update_icmp_drop(net_pkt_iface(pkt));
 		return NET_DROP;
 	}
 
-	net_stats_update_icmp_sent();
+	net_stats_update_icmp_sent(net_pkt_iface(pkt));
 
 	return NET_OK;
 }
@@ -219,11 +219,11 @@ int net_icmpv4_send_echo_request(struct net_if *iface,
 		    sizeof(struct net_icmp_hdr) +
 		    sizeof(struct net_icmpv4_echo_req));
 
-	setup_ipv4_header(pkt, 0, net_if_ipv4_get_ttl(iface),
-			  NET_ICMPV4_ECHO_REQUEST, 0);
-
 	net_ipaddr_copy(&NET_IPV4_HDR(pkt)->src, src);
 	net_ipaddr_copy(&NET_IPV4_HDR(pkt)->dst, dst);
+
+	setup_ipv4_header(pkt, 0, net_if_ipv4_get_ttl(iface),
+			  NET_ICMPV4_ECHO_REQUEST, 0);
 
 	NET_ICMPV4_ECHO_REQ(pkt)->identifier = htons(identifier);
 	NET_ICMPV4_ECHO_REQ(pkt)->sequence = htons(sequence);
@@ -244,12 +244,13 @@ int net_icmpv4_send_echo_request(struct net_if *iface,
 	net_icmpv4_set_chksum(pkt, pkt->frags);
 
 	if (net_send_data(pkt) >= 0) {
-		net_stats_update_icmp_sent();
+		net_stats_update_icmp_sent(iface);
 		return 0;
 	}
 
+	net_stats_update_icmp_drop(iface);
+
 	net_pkt_unref(pkt);
-	net_stats_update_icmp_drop();
 
 	return -EIO;
 }
@@ -322,12 +323,12 @@ int net_icmpv4_send_error(struct net_pkt *orig, u8_t type, u8_t code)
 	net_pkt_set_iface(pkt, iface);
 	net_pkt_set_ll_reserve(pkt, net_buf_headroom(frag));
 
-	setup_ipv4_header(pkt, extra_len, net_if_ipv4_get_ttl(iface),
-			  type, code);
-
 	net_ipaddr_copy(&addr, src);
 	net_ipaddr_copy(&NET_IPV4_HDR(pkt)->src, dst);
 	net_ipaddr_copy(&NET_IPV4_HDR(pkt)->dst, &addr);
+
+	setup_ipv4_header(pkt, extra_len, net_if_ipv4_get_ttl(iface),
+			  type, code);
 
 	net_pkt_ll_src(pkt)->addr = net_pkt_ll_dst(orig)->addr;
 	net_pkt_ll_src(pkt)->len = net_pkt_ll_dst(orig)->len;
@@ -349,7 +350,7 @@ int net_icmpv4_send_error(struct net_pkt *orig, u8_t type, u8_t code)
 #endif /* CONFIG_NET_DEBUG_ICMPV4 */
 
 	if (net_send_data(pkt) >= 0) {
-		net_stats_update_icmp_sent();
+		net_stats_update_icmp_sent(iface);
 		return 0;
 	}
 
@@ -357,7 +358,7 @@ drop:
 	net_pkt_unref(pkt);
 
 drop_no_pkt:
-	net_stats_update_icmp_drop();
+	net_stats_update_icmp_drop(iface);
 
 	return err;
 }
@@ -377,7 +378,7 @@ enum net_verdict net_icmpv4_input(struct net_pkt *pkt,
 {
 	struct net_icmpv4_handler *cb;
 
-	net_stats_update_icmp_recv();
+	net_stats_update_icmp_recv(net_pkt_iface(pkt));
 
 	SYS_SLIST_FOR_EACH_CONTAINER(&handlers, cb, node) {
 		if (cb->type == type && (cb->code == code || cb->code == 0)) {
@@ -385,7 +386,7 @@ enum net_verdict net_icmpv4_input(struct net_pkt *pkt,
 		}
 	}
 
-	net_stats_update_icmp_drop();
+	net_stats_update_icmp_drop(net_pkt_iface(pkt));
 
 	return NET_DROP;
 }

@@ -56,6 +56,21 @@ typedef void (*bt_ready_cb_t)(int err);
  */
 int bt_enable(bt_ready_cb_t cb);
 
+/** @brief Set the local Identity Address
+ *
+ *  Allows setting the local Identity Address from the application.
+ *  This API must be called before calling bt_enable(). Calling it at any
+ *  other time will cause it to fail. In most cases the application doesn't
+ *  need to use this API, however there are a few valid cases where
+ *  it can be useful (such as for testing).
+ *
+ *  At the moment, the given address must be a static random address. In the
+ *  future support for public addresses may be added.
+ *
+ *  @return Zero on success or (negative) error code otherwise.
+ */
+int bt_set_id_addr(const bt_addr_le_t *addr);
+
 /* Advertising API */
 
 /** Description of different data types that can be encoded into
@@ -263,6 +278,23 @@ int bt_le_scan_start(const struct bt_le_scan_param *param, bt_le_scan_cb_t cb);
  *  of protocol error or negative (POSIX) in case of stack internal error
  */
 int bt_le_scan_stop(void);
+
+/** @brief Helper for parsing advertising (or EIR or OOB) data.
+ *
+ *  A helper for parsing the basic data types used for Extended Inquiry
+ *  Response (EIR), Advertising Data (AD), and OOB data blocks. The most
+ *  common scenario is to call this helper on the adverstising data
+ *  received in the callback that was given to bt_le_scan_start().
+ *
+ *  @param ad        Advertising data as given to the bt_le_scan_cb_t callback.
+ *  @param func      Callback function which will be called for each element
+ *                   that's found in the data. The callback should return
+ *                   true to continue parsing, or false to stop parsing.
+ *  @param user_data User data to be passed to the callback.
+ */
+void bt_data_parse(struct net_buf_simple *ad,
+		   bool (*func)(struct bt_data *data, void *user_data),
+		   void *user_data);
 
 struct bt_le_oob {
 	/** LE address. If local privacy is enabled this is Resolvable Private
@@ -473,6 +505,15 @@ int bt_br_set_discoverable(bool enable);
  *  already set. Zero if done successfully.
  */
 int bt_br_set_connectable(bool enable);
+
+/** Clear pairing information.
+  *
+  * @param addr  Remote address, NULL or BT_ADDR_LE_ANY to clear all remote
+  *              devices.
+  *
+  * @return 0 on success or negative error value on failure.
+  */
+int bt_unpair(const bt_addr_le_t *addr);
 
 /**
  * @}

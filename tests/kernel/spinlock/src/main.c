@@ -58,7 +58,7 @@ void bounce_once(int id)
 		return;
 	}
 
-	zassert_true(locked, "Other cpu did not get lock in 10000 tries\n");
+	zassert_true(locked, "Other cpu did not get lock in 10000 tries");
 
 	/* Mark us as the owner, spin for a while validating that we
 	 * never see another owner write to the protected data.
@@ -100,8 +100,8 @@ void test_spinlock_bounce(void)
 
 void test_main(void)
 {
-	ztest_test_suite(test_spinlock,
+	ztest_test_suite(spinlock,
 			 ztest_unit_test(test_spinlock_basic),
 			 ztest_unit_test(test_spinlock_bounce));
-	ztest_run_test_suite(test_spinlock);
+	ztest_run_test_suite(spinlock);
 }

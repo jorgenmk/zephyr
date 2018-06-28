@@ -5,9 +5,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+from collections import defaultdict
+
 # globals
 phandles = {}
-aliases = {}
+aliases = defaultdict(list)
 chosen = {}
 reduced = {}
 
@@ -27,10 +29,13 @@ name_config = {
 
 
 def convert_string_to_label(s):
-    # Transmute ,- to _
+    # Transmute ,-@/ to _
     s = s.replace("-", "_")
     s = s.replace(",", "_")
     s = s.replace("@", "_")
+    s = s.replace("/", "_")
+    # Uppercase the string
+    s = s.upper()
     return s
 
 
@@ -60,17 +65,24 @@ def get_aliases(root):
     if 'children' in root:
         if 'aliases' in root['children']:
             for k, v in root['children']['aliases']['props'].items():
-                aliases[v] = k
+                aliases[v].append(k)
 
 
-def get_compat(node):
+def get_compat(node_address):
     compat = None
 
-    if 'props' in node:
-        compat = node['props'].get('compatible')
+    try:
+        if 'props' in reduced[node_address].keys():
+            compat = reduced[node_address]['props'].get('compatible')
 
-    if isinstance(compat, list):
-        compat = compat[0]
+        if isinstance(compat, list):
+            compat = compat[0]
+
+        if compat == None:
+            compat = find_parent_prop(node_address, 'compatible')
+
+    except:
+        pass
 
     return compat
 
@@ -142,10 +154,25 @@ def get_reduced(nodes, path):
 
 
 def get_node_label(node_compat, node_address):
-    def_label = convert_string_to_label(node_compat.upper())
+    def_label = convert_string_to_label(node_compat)
     if '@' in node_address:
-        def_label += '_' + node_address.split('@')[-1].upper()
+        def_label += '_' + \
+                convert_string_to_label(node_address.split('@')[-1])
     else:
-        def_label += convert_string_to_label(node_address.upper())
+        def_label += convert_string_to_label(node_address)
 
     return def_label
+
+def find_parent_prop(node_address, prop):
+    parent_address = ''
+
+    for comp in node_address.split('/')[1:-1]:
+        parent_address += '/' + comp
+
+    if prop in reduced[parent_address]['props']:
+        parent_prop = reduced[parent_address]['props'].get(prop)
+    else:
+        raise Exception("Parent of node " + node_address +
+                        " has no " + prop + " property")
+
+    return parent_prop

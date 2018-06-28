@@ -72,6 +72,14 @@ set(APPLICATION_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR} CACHE PATH "Application B
 set(__build_dir ${CMAKE_CURRENT_BINARY_DIR}/zephyr)
 
 set(PROJECT_BINARY_DIR ${__build_dir})
+
+# CMake's 'project' concept has proven to not be very useful for Zephyr
+# due in part to how Zephyr is organized and in part to it not fitting well
+# with cross compilation.
+# CMake therefore tries to rely as little as possible on project()
+# and its associated variables, e.g. PROJECT_SOURCE_DIR.
+# It is recommended to always use ZEPHYR_BASE instead of PROJECT_SOURCE_DIR
+# when trying to reference ENV${ZEPHYR_BASE}.
 set(PROJECT_SOURCE_DIR $ENV{ZEPHYR_BASE})
 
 # Convert path to use the '/' separator
@@ -241,6 +249,13 @@ include(${ZEPHYR_BASE}/cmake/host-tools.cmake)
 include(${ZEPHYR_BASE}/cmake/kconfig.cmake)
 include(${ZEPHYR_BASE}/cmake/toolchain.cmake)
 
+find_package(Git QUIET)
+if(GIT_FOUND)
+  execute_process(COMMAND ${GIT_EXECUTABLE} -C ${ZEPHYR_BASE} describe
+    OUTPUT_VARIABLE BUILD_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
+
 set(SOC_NAME ${CONFIG_SOC})
 set(SOC_SERIES ${CONFIG_SOC_SERIES})
 set(SOC_FAMILY ${CONFIG_SOC_FAMILY})
@@ -270,6 +285,13 @@ set(KERNEL_S19_NAME   ${KERNEL_NAME}.s19)
 set(KERNEL_EXE_NAME   ${KERNEL_NAME}.exe)
 set(KERNEL_STAT_NAME  ${KERNEL_NAME}.stat)
 set(KERNEL_STRIP_NAME ${KERNEL_NAME}.strip)
+
+# Populate USER_CACHE_DIR with a directory that user applications may
+# write cache files to.
+if(NOT DEFINED USER_CACHE_DIR)
+  find_appropriate_cache_directory(USER_CACHE_DIR)
+endif()
+message(STATUS "Cache files will be written to: ${USER_CACHE_DIR}")
 
 include(${BOARD_DIR}/board.cmake OPTIONAL)
 

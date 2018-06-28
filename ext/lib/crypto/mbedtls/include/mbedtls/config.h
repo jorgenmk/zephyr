@@ -440,11 +440,44 @@
 /**
  * \def MBEDTLS_AES_ROM_TABLES
  *
- * Store the AES tables in ROM.
+ * Use precomputed AES tables stored in ROM.
  *
- * Uncomment this macro to store the AES tables in ROM.
+ * Uncomment this macro to use precomputed AES tables stored in ROM.
+ * Comment this macro to generate AES tables in RAM at runtime.
+ *
+ * Tradeoff: Using precomputed ROM tables reduces RAM usage by ~8kb
+ * (or ~2kb if \c MBEDTLS_AES_FEWER_TABLES is used) and reduces the
+ * initialization time before the first AES operation can be performed.
+ * It comes at the cost of additional ~8kb ROM use (resp. ~2kb if \c
+ * MBEDTLS_AES_FEWER_TABLES below is used), and potentially degraded
+ * performance if ROM access is slower than RAM access.
+ *
+ * This option is independent of \c MBEDTLS_AES_FEWER_TABLES.
+ *
  */
 //#define MBEDTLS_AES_ROM_TABLES
+
+/**
+ * \def MBEDTLS_AES_FEWER_TABLES
+ *
+ * Use less ROM/RAM for AES tables.
+ *
+ * Uncommenting this macro omits 75% of the AES tables from
+ * ROM / RAM (depending on the value of \c MBEDTLS_AES_ROM_TABLES)
+ * by computing their values on the fly during operations
+ * (the tables are entry-wise rotations of one another).
+ *
+ * Tradeoff: Uncommenting this reduces the RAM / ROM footprint
+ * by ~6kb but at the cost of more arithmetic operations during
+ * runtime. Specifically, one has to compare 4 accesses within
+ * different tables to 4 accesses with additional arithmetic
+ * operations within the same table. The performance gain/loss
+ * depends on the system and memory details.
+ *
+ * This option is independent of \c MBEDTLS_AES_ROM_TABLES.
+ *
+ */
+//#define MBEDTLS_AES_FEWER_TABLES
 
 /**
  * \def MBEDTLS_CAMELLIA_SMALL_MEMORY
@@ -576,6 +609,7 @@
 #define MBEDTLS_ECP_DP_BP384R1_ENABLED
 #define MBEDTLS_ECP_DP_BP512R1_ENABLED
 #define MBEDTLS_ECP_DP_CURVE25519_ENABLED
+#define MBEDTLS_ECP_DP_CURVE448_ENABLED
 
 /**
  * \def MBEDTLS_ECP_NIST_OPTIM
@@ -1049,7 +1083,8 @@
 /**
  * \def MBEDTLS_RSA_NO_CRT
  *
- * Do not use the Chinese Remainder Theorem for the RSA private operation.
+ * Do not use the Chinese Remainder Theorem
+ * for the RSA private operation.
  *
  * Uncomment this macro to disable the use of CRT in RSA.
  *
@@ -1412,6 +1447,30 @@
 #define MBEDTLS_SSL_TRUNCATED_HMAC
 
 /**
+ * \def MBEDTLS_SSL_TRUNCATED_HMAC_COMPAT
+ *
+ * Fallback to old (pre-2.7), non-conforming implementation of the truncated
+ * HMAC extension which also truncates the HMAC key. Note that this option is
+ * only meant for a transitory upgrade period and is likely to be removed in
+ * a future version of the library.
+ *
+ * \warning The old implementation is non-compliant and has a security weakness
+ *          (2^80 brute force attack on the HMAC key used for a single,
+ *          uninterrupted connection). This should only be enabled temporarily
+ *          when (1) the use of truncated HMAC is essential in order to save
+ *          bandwidth, and (2) the peer is an Mbed TLS stack that doesn't use
+ *          the fixed implementation yet (pre-2.7).
+ *
+ * \deprecated This option is deprecated and will likely be removed in a
+ *             future version of Mbed TLS.
+ *
+ * Uncomment to fallback to old, non-compliant truncated HMAC implementation.
+ *
+ * Requires: MBEDTLS_SSL_TRUNCATED_HMAC
+ */
+//#define MBEDTLS_SSL_TRUNCATED_HMAC_COMPAT
+
+/**
  * \def MBEDTLS_THREADING_ALT
  *
  * Provide your own alternate threading implementation.
@@ -1516,6 +1575,9 @@
  * CRIME or similar exploits may be a applicable to your use case.
  *
  * \note Currently compression can't be used with DTLS.
+ *
+ * \deprecated This feature is deprecated and will be removed
+ *             in the next major revision of the library.
  *
  * Used in: library/ssl_tls.c
  *          library/ssl_cli.c

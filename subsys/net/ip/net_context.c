@@ -24,6 +24,7 @@
 #include <net/net_ip.h>
 #include <net/net_context.h>
 #include <net/net_offload.h>
+#include <net/tcp.h>
 
 #include "connection.h"
 #include "net_private.h"
@@ -31,7 +32,7 @@
 #include "ipv6.h"
 #include "ipv4.h"
 #include "udp_internal.h"
-#include "tcp.h"
+#include "tcp_internal.h"
 #include "net_stats.h"
 
 #ifndef EPFNOSUPPORT
@@ -776,7 +777,6 @@ int net_context_connect(struct net_context *context,
 
 	default:
 		return -ENOTSUP;
-
 	}
 
 	return 0;
@@ -817,29 +817,6 @@ int net_context_accept(struct net_context *context,
 	}
 
 	return 0;
-}
-
-static int send_data(struct net_context *context,
-		     struct net_pkt *pkt,
-		     net_context_send_cb_t cb,
-		     s32_t timeout,
-		     void *token,
-		     void *user_data)
-{
-	context->send_cb = cb;
-	context->user_data = user_data;
-	net_pkt_set_token(pkt, token);
-
-	switch (net_context_get_ip_proto(context)) {
-	case IPPROTO_UDP:
-		return net_send_data(pkt);
-
-	case IPPROTO_TCP:
-		return net_tcp_send_data(context, cb, token, user_data);
-
-	default:
-		return -EPROTONOSUPPORT;
-	}
 }
 
 #if defined(CONFIG_NET_UDP)
@@ -989,7 +966,20 @@ static int sendto(struct net_pkt *pkt,
 		return ret;
 	}
 
-	return send_data(context, pkt, cb, timeout, token, user_data);
+	context->send_cb = cb;
+	context->user_data = user_data;
+	net_pkt_set_token(pkt, token);
+
+	switch (net_context_get_ip_proto(context)) {
+	case IPPROTO_UDP:
+		return net_send_data(pkt);
+
+	case IPPROTO_TCP:
+		return net_tcp_send_data(context, cb, token, user_data);
+
+	default:
+		return -EPROTONOSUPPORT;
+	}
 }
 
 int net_context_send(struct net_pkt *pkt,
@@ -1119,7 +1109,8 @@ enum net_verdict net_context_packet_received(struct net_conn *conn,
 		/* TCP packets get appdata earlier in tcp_established(). */
 		net_context_set_appdata_values(pkt, IPPROTO_UDP);
 	} else {
-		net_stats_update_tcp_recv(net_pkt_appdatalen(pkt));
+		net_stats_update_tcp_recv(net_pkt_iface(pkt),
+					  net_pkt_appdatalen(pkt));
 	}
 
 	NET_DBG("Set appdata %p to len %u (total %zu)",

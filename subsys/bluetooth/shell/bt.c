@@ -19,11 +19,12 @@
 #include <misc/byteorder.h>
 #include <zephyr.h>
 
+#include <settings/settings.h>
+
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/conn.h>
 #include <bluetooth/l2cap.h>
 #include <bluetooth/rfcomm.h>
-#include <bluetooth/storage.h>
 #include <bluetooth/sdp.h>
 
 #include <shell/shell.h>
@@ -39,7 +40,6 @@
 #define DATA_BREDR_MTU		48
 
 #define BT_SHELL_MODULE "bt"
-static bt_addr_le_t id_addr;
 
 #if defined(CONFIG_BT_CONN)
 struct bt_conn *default_conn;
@@ -130,43 +130,31 @@ static struct bt_sdp_record spp_rec = BT_SDP_RECORD(spp_attrs);
 
 #endif /* CONFIG_BT_RFCOMM */
 
+#define NAME_LEN 30
+
+static bool data_cb(struct bt_data *data, void *user_data)
+{
+	char *name = user_data;
+
+	switch (data->type) {
+	case BT_DATA_NAME_SHORTENED:
+	case BT_DATA_NAME_COMPLETE:
+		memcpy(name, data->data, min(data->data_len, NAME_LEN - 1));
+		return false;
+	default:
+		return true;
+	}
+}
+
 static void device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t evtype,
 			 struct net_buf_simple *buf)
 {
 	char le_addr[BT_ADDR_LE_STR_LEN];
-	char name[30];
+	char name[NAME_LEN];
 
 	memset(name, 0, sizeof(name));
 
-	while (buf->len > 1) {
-		u8_t len, type;
-
-		len = net_buf_simple_pull_u8(buf);
-		if (!len) {
-			break;
-		}
-
-		/* Check if field length is correct */
-		if (len > buf->len) {
-			break;
-		}
-
-		type = net_buf_simple_pull_u8(buf);
-		switch (type) {
-		case BT_DATA_NAME_SHORTENED:
-		case BT_DATA_NAME_COMPLETE:
-			if (len > sizeof(name) - 1) {
-				memcpy(name, buf->data, sizeof(name) - 1);
-			} else {
-				memcpy(name, buf->data, len - 1);
-			}
-			break;
-		default:
-			break;
-		}
-
-		net_buf_simple_pull(buf, len - 1);
-	}
+	bt_data_parse(buf, data_cb, name);
 
 	bt_addr_le_to_str(addr, le_addr, sizeof(le_addr));
 	printk("[DEVICE]: %s, AD evt type %u, RSSI %i %s\n", le_addr, evtype,
@@ -506,42 +494,6 @@ static int str2bt_addr_le(const char *str, const char *type, bt_addr_le_t *addr)
 	return 0;
 }
 
-static ssize_t storage_read(const bt_addr_le_t *addr, u16_t key, void *data,
-			    size_t length)
-{
-	if (addr) {
-		return -ENOENT;
-	}
-
-	if (key == BT_STORAGE_ID_ADDR && length == sizeof(id_addr) &&
-	    bt_addr_le_cmp(&id_addr, BT_ADDR_LE_ANY)) {
-		bt_addr_le_copy(data, &id_addr);
-		return sizeof(id_addr);
-	}
-
-	return -EIO;
-}
-
-static ssize_t storage_write(const bt_addr_le_t *addr, u16_t key,
-			     const void *data, size_t length)
-{
-	if (addr) {
-		return -ENOENT;
-	}
-
-	if (key == BT_STORAGE_ID_ADDR && length == sizeof(id_addr)) {
-		bt_addr_le_copy(&id_addr, data);
-		return sizeof(id_addr);
-	}
-
-	return -EIO;
-}
-
-static int storage_clear(const bt_addr_le_t *addr)
-{
-	return -ENOSYS;
-}
-
 static void bt_ready(int err)
 {
 	if (err) {
@@ -550,6 +502,10 @@ static void bt_ready(int err)
 	}
 
 	printk("Bluetooth initialized\n");
+
+	if (IS_ENABLED(CONFIG_SETTINGS)) {
+		settings_load();
+	}
 
 #if defined(CONFIG_BT_CONN)
 	default_conn = NULL;
@@ -560,28 +516,7 @@ static void bt_ready(int err)
 
 static int cmd_init(int argc, char *argv[])
 {
-	static const struct bt_storage storage = {
-		.read = storage_read,
-		.write = storage_write,
-		.clear = storage_clear,
-	};
 	int err;
-
-	if (argc > 1) {
-		if (argc < 3) {
-			printk("Invalid address\n");
-			return -EINVAL;
-		}
-
-		err = str2bt_addr_le(argv[1], argv[2], &id_addr);
-		if (err) {
-			printk("Invalid address (err %d)\n", err);
-			bt_addr_le_cmp(&id_addr, BT_ADDR_LE_ANY);
-			return -EINVAL;
-		}
-
-		bt_storage_register(&storage);
-	}
 
 	err = bt_enable(bt_ready);
 	if (err) {
@@ -944,11 +879,11 @@ static int cmd_clear(int argc, char *argv[])
 	}
 
 	if (strcmp(argv[1], "all") == 0) {
-		err = bt_storage_clear(NULL);
+		err = bt_unpair(NULL);
 		if (err) {
-			printk("Failed to clear storage (err %d)\n", err);
+			printk("Failed to clear pairings (err %d)\n", err);
 		} else {
-			printk("Storage successfully cleared\n");
+			printk("Pairings successfully cleared\n");
 		}
 
 		return 0;
@@ -971,11 +906,11 @@ static int cmd_clear(int argc, char *argv[])
 		return 0;
 	}
 
-	err = bt_storage_clear(&addr);
+	err = bt_unpair(&addr);
 	if (err) {
-		printk("Failed to clear storage (err %d)\n", err);
+		printk("Failed to clear pairing (err %d)\n", err);
 	} else {
-		printk("Storage successfully cleared\n");
+		printk("Pairing successfully cleared\n");
 	}
 
 	return 0;

@@ -58,7 +58,7 @@ Zephyr. Where examples are given, they assume the sample is being built for
 the Nordic nRF52 Development Kit (``BOARD=nrf52_pca10040``).
 
 If you would like to use a more constrained platform, such as the nRF51 DK, you
-should use the :file:`prj.conf.tiny` configuration file rather than the default
+should use the :file:`prj_tiny.conf` configuration file rather than the default
 :file:`prj.conf`.
 
 Step 1: Build MCUboot
@@ -93,7 +93,7 @@ Step 3: Build smp_svr
 ``smp_svr`` can be built for the nRF52 as follows:
 
 .. zephyr-app-commands::
-    :zephyr-app: samples/mgmt/mcumgr/smp_svr
+    :zephyr-app: samples/subsys/mgmt/mcumgr/smp_svr
     :board: nrf52_pca10040
     :build-dir: nrf52_pca10040
     :goals: build

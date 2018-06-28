@@ -785,8 +785,8 @@ void bt_conn_identity_resolved(struct bt_conn *conn)
 	}
 }
 
-int bt_conn_le_start_encryption(struct bt_conn *conn, u64_t rand,
-				u16_t ediv, const u8_t *ltk, size_t len)
+int bt_conn_le_start_encryption(struct bt_conn *conn, u8_t rand[8],
+				u8_t ediv[2], const u8_t *ltk, size_t len)
 {
 	struct bt_hci_cp_le_start_encryption *cp;
 	struct net_buf *buf;
@@ -798,8 +798,8 @@ int bt_conn_le_start_encryption(struct bt_conn *conn, u64_t rand,
 
 	cp = net_buf_add(buf, sizeof(*cp));
 	cp->handle = sys_cpu_to_le16(conn->handle);
-	cp->rand = rand;
-	cp->ediv = ediv;
+	memcpy(&cp->rand, rand, sizeof(cp->rand));
+	memcpy(&cp->ediv, ediv, sizeof(cp->ediv));
 
 	memcpy(cp->ltk, ltk, len);
 	if (len < sizeof(cp->ltk)) {
@@ -906,14 +906,12 @@ static int start_security(struct bt_conn *conn)
 		}
 
 		if (conn->required_sec_level > BT_SECURITY_MEDIUM &&
-		    !atomic_test_bit(conn->le.keys->flags,
-				     BT_KEYS_AUTHENTICATED)) {
+		    !(conn->le.keys->flags & BT_KEYS_AUTHENTICATED)) {
 			return bt_smp_send_pairing_req(conn);
 		}
 
 		if (conn->required_sec_level > BT_SECURITY_HIGH &&
-		    !atomic_test_bit(conn->le.keys->flags,
-				     BT_KEYS_AUTHENTICATED) &&
+		    !(conn->le.keys->flags & BT_KEYS_AUTHENTICATED) &&
 		    !(conn->le.keys->keys & BT_KEYS_LTK_P256)) {
 			return bt_smp_send_pairing_req(conn);
 		}
@@ -1767,7 +1765,9 @@ int bt_conn_disconnect(struct bt_conn *conn, u8_t reason)
 	case BT_CONN_CONNECT_SCAN:
 		conn->err = reason;
 		bt_conn_set_state(conn, BT_CONN_DISCONNECTED);
-		bt_le_scan_update(false);
+		if (IS_ENABLED(CONFIG_BT_CENTRAL)) {
+			bt_le_scan_update(false);
+		}
 		return 0;
 	case BT_CONN_CONNECT:
 #if defined(CONFIG_BT_BREDR)

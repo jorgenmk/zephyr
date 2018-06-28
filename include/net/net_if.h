@@ -27,6 +27,7 @@
 #include <net/net_linkaddr.h>
 #include <net/net_ip.h>
 #include <net/net_l2.h>
+#include <net/net_stats.h>
 
 #if defined(CONFIG_NET_DHCPV4)
 #include <net/dhcpv4.h>
@@ -371,6 +372,11 @@ struct net_if {
 	/** The net_if_dev instance the net_if is related to */
 	struct net_if_dev *if_dev;
 
+#if defined(CONFIG_NET_STATISTICS_PER_INTERFACE)
+	/** Network statistics related to this network interface */
+	struct net_stats stats;
+#endif /* CONFIG_NET_STATISTICS_PER_INTERFACE */
+
 	/** Network interface instance configuration */
 	struct net_if_config config;
 } __net_if_align;
@@ -423,6 +429,12 @@ static inline enum net_verdict net_if_recv_data(struct net_if *iface,
 static inline u16_t net_if_get_ll_reserve(struct net_if *iface,
 					  const struct in6_addr *dst_ip6)
 {
+#if defined(CONFIG_NET_OFFLOAD)
+	if (iface->if_dev->offload) {
+		return 0;
+	}
+#endif
+
 	return net_if_l2(iface)->reserve(iface, (void *)dst_ip6);
 }
 
@@ -1363,6 +1375,43 @@ bool net_if_ipv4_addr_mask_cmp(struct net_if *iface,
 			       struct in_addr *addr);
 
 /**
+ * @brief Get a network interface that should be used when sending
+ * IPv4 network data to destination.
+ *
+ * @param dst IPv4 destination address
+ *
+ * @return Pointer to network interface to use, NULL if no suitable interface
+ * could be found.
+ */
+struct net_if *net_if_ipv4_select_src_iface(struct in_addr *dst);
+
+/**
+ * @brief Get a IPv4 source address that should be used when sending
+ * network data to destination.
+ *
+ * @param iface Interface to use when sending the packet.
+ * If the interface is not known, then NULL can be given.
+ * @param dst IPv4 destination address
+ *
+ * @return Pointer to IPv4 address to use, NULL if no IPv4 address
+ * could be found.
+ */
+const struct in_addr *net_if_ipv4_select_src_addr(struct net_if *dst_iface,
+						  struct in_addr *dst);
+
+/**
+ * @brief Get a IPv4 link local address in a given state.
+ *
+ * @param iface Interface to use. Must be a valid pointer to an interface.
+ * @param addr_state IPv4 address state (preferred, tentative, deprecated)
+ *
+ * @return Pointer to link local IPv4 address, NULL if no proper IPv4 address
+ * could be found.
+ */
+struct in_addr *net_if_ipv4_get_ll(struct net_if *iface,
+				   enum net_addr_state addr_state);
+
+/**
  * @brief Set IPv4 netmask for an interface.
  *
  * @param iface Interface to use.
@@ -1551,6 +1600,71 @@ static inline bool net_if_is_up(struct net_if *iface)
  */
 int net_if_down(struct net_if *iface);
 
+#if defined(CONFIG_NET_PKT_TIMESTAMP)
+/**
+ * @typedef net_if_timestamp_callback_t
+ * @brief Define callback that is called after a network packet
+ *        has been timestamped.
+ * @param "struct net_pkt *pkt" A pointer on a struct net_pkt which has
+ *        been timestamped after being sent.
+ */
+typedef void (*net_if_timestamp_callback_t)(struct net_pkt *pkt);
+
+/**
+ * @brief Timestamp callback handler struct.
+ *
+ * Stores the timestamp callback information. Caller must make sure that
+ * the variable pointed by this is valid during the lifetime of
+ * registration. Typically this means that the variable cannot be
+ * allocated from stack.
+ */
+struct net_if_timestamp_cb {
+	/** Node information for the slist. */
+	sys_snode_t node;
+
+	/** Net interface for which the callback is needed.
+	 *  A NULL value means all interfaces.
+	 */
+	struct net_if *iface;
+
+	/** Timestamp callback */
+	net_if_timestamp_callback_t cb;
+};
+
+/**
+ * @brief Register a timestamp callback.
+ *
+ * @param handle Caller specified handler for the callback.
+ * @param iface Net interface for which the callback is. NULL for all
+ *		interfaces.
+ * @param cb Callback to register.
+ */
+void net_if_register_timestamp_cb(struct net_if_timestamp_cb *handle,
+				  struct net_if *iface,
+				  net_if_timestamp_callback_t cb);
+
+/**
+ * @brief Unregister a timestamp callback.
+ *
+ * @param handle Caller specified handler for the callback.
+ */
+void net_if_unregister_timestamp_cb(struct net_if_timestamp_cb *handle);
+
+/**
+ * @brief Call a timestamp callback function.
+ *
+ * @param pkt Network buffer.
+ */
+void net_if_call_timestamp_cb(struct net_pkt *pkt);
+
+/*
+ * @brief Add timestamped TX buffer to be handled
+ *
+ * @param pkt Timestamped buffer
+ */
+void net_if_add_tx_timestamp(struct net_pkt *pkt);
+#endif /* CONFIG_NET_PKT_TIMESTAMP */
+
 struct net_if_api {
 	void (*init)(struct net_if *iface);
 	int (*send)(struct net_if *iface, struct net_pkt *pkt);
@@ -1592,6 +1706,21 @@ struct net_if_api {
 		}							\
 	}
 
+#define NET_IF_OFFLOAD_INIT(dev_name, sfx, _mtu)			\
+	static struct net_if_dev (NET_IF_DEV_GET_NAME(dev_name, sfx)) __used \
+	__attribute__((__section__(".net_if_dev.data"))) = {		\
+		.dev = &(__device_##dev_name),				\
+		.mtu = _mtu,						\
+	};								\
+	static struct net_if						\
+	(NET_IF_GET_NAME(dev_name, sfx))[NET_IF_MAX_CONFIGS] __used	\
+	__attribute__((__section__(".net_if.data"))) = {		\
+		[0 ... (NET_IF_MAX_CONFIGS - 1)] = {			\
+			.if_dev = &(NET_IF_DEV_GET_NAME(dev_name, sfx)), \
+			NET_IF_CONFIG_INIT				\
+		}							\
+	}
+
 /* Network device initialization macros */
 
 #define NET_DEVICE_INIT(dev_name, drv_name, init_fn,		\
@@ -1601,6 +1730,13 @@ struct net_if_api {
 			    cfg_info, POST_KERNEL, prio, api);	\
 	NET_L2_DATA_INIT(dev_name, 0, l2_ctx_type);		\
 	NET_IF_INIT(dev_name, 0, l2, mtu, NET_IF_MAX_CONFIGS)
+
+#define NET_DEVICE_OFFLOAD_INIT(dev_name, drv_name, init_fn,	\
+				data, cfg_info, prio, api, mtu)	\
+	DEVICE_AND_API_INIT(dev_name, drv_name, init_fn, data,	\
+			    cfg_info, POST_KERNEL, prio, api);	\
+	NET_IF_OFFLOAD_INIT(dev_name, 0, mtu)
+
 
 /**
  * If your network device needs more than one instance of a network interface,

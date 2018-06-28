@@ -450,10 +450,10 @@ static const struct gpio_driver_api gpio_nrf5_drv_api_funcs = {
 
 static int gpio_nrf5_init(struct device *dev)
 {
-	IRQ_CONNECT(NRF5_IRQ_GPIOTE_IRQn, CONFIG_GPIOTE_NRF5_PRI,
+	IRQ_CONNECT(CONFIG_GPIOTE_NRF5_IRQ, CONFIG_GPIOTE_NRF5_IRQ_PRI,
 		    gpio_nrf5_port_isr, NULL, 0);
 
-	irq_enable(NRF5_IRQ_GPIOTE_IRQn);
+	irq_enable(CONFIG_GPIOTE_NRF5_IRQ);
 
 	return 0;
 }
@@ -494,7 +494,7 @@ static struct gpio_nrf5_data gpio_data_P0;
 
 DEVICE_AND_API_INIT(gpio_nrf5_P0, CONFIG_GPIO_NRF5_P0_DEV_NAME, gpio_nrf5_P0_init,
 		    &gpio_data_P0, &gpio_nrf5_P0_cfg,
-		    POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,
+		    POST_KERNEL, CONFIG_GPIO_NRF5_INIT_PRIORITY,
 		    &gpio_nrf5_drv_api_funcs);
 
 #endif /* CONFIG_GPIO_NRF5_P0 */

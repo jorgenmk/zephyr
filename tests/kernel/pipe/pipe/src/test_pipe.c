@@ -4,17 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * @addtogroup t_pipe
- * @{
- * @defgroup t_pipe_basic test_pipe_basic
- * @brief TestPurpose: verify zephyr pipe apis under different context
- * - API coverage
- *   -# k_pipe_init K_PIPE_DEFINE
- *   -# k_pipe_put
- *   -# k_pipe_get
- * @}
- */
 
 #include <ztest.h>
 
@@ -695,7 +684,7 @@ void _SysFatalErrorHandler(unsigned int reason, const NANO_ESF *pEsf)
 	} else {
 		ztest_test_fail();
 	}
-#ifndef CONFIG_ARM
+#if !(defined(CONFIG_ARM) || defined(CONFIG_ARC))
 	CODE_UNREACHABLE;
 #endif
 
@@ -802,5 +791,10 @@ void test_pipe_get_invalid_size(void)
 		   1, TIMEOUT_200MSEC);
 
 	zassert_unreachable("fault didn't occur for min_xfer <= bytes_to_read");
+}
+#else
+void test_pipe_get_invalid_size(void)
+{
+	ztest_test_skip();
 }
 #endif

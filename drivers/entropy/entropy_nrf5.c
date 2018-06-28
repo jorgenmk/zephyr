@@ -8,6 +8,7 @@
 #include <entropy.h>
 #include <atomic.h>
 #include <soc.h>
+#include "nrf_rng.h"
 
 /*
  * The nRF5 RNG HW has several characteristics that need to be taken
@@ -161,10 +162,7 @@ static inline u8_t get(struct rand *rng, u8_t octets, u8_t *rand)
 	}
 
 	if (remaining < rng->threshold) {
-		NRF_RNG->TASKS_START = 1;
-#if defined(CONFIG_BOARD_NRFXX_NWTSIM)
-		NRF_RNG_regw_sideeffects();
-#endif
+		nrf_rng_task_trigger(NRF_RNG_TASK_START);
 	}
 
 	return octets;
@@ -228,10 +226,7 @@ static void isr_rand(void *arg)
 		NRF_RNG->EVENTS_VALRDY = 0;
 
 		if (ret != -EBUSY) {
-			NRF_RNG->TASKS_STOP = 1;
-#if defined(CONFIG_BOARD_NRFXX_NWTSIM)
-			NRF_RNG_regw_sideeffects();
-#endif
+			nrf_rng_task_trigger(NRF_RNG_TASK_STOP);
 		}
 	}
 }
@@ -271,11 +266,34 @@ static int entropy_nrf5_get_entropy(struct device *device, u8_t *buf, u16_t len)
 	return 0;
 }
 
+static int entropy_nrf5_get_entropy_isr(struct device *dev, u8_t *buf, u16_t len,
+					u32_t flags)
+{
+	struct entropy_nrf5_dev_data *dev_data = DEV_DATA(dev);
+	u16_t cnt = len;
+
+	if (!(flags & ENTROPY_BUSYWAIT)) {
+		return get((struct rand *)dev_data->isr, len, buf);
+	}
+
+	while (len) {
+		NRF_RNG->EVENTS_VALRDY = 0;
+		nrf_rng_task_trigger(NRF_RNG_TASK_START);
+		while (NRF_RNG->EVENTS_VALRDY == 0) {
+		}
+		buf[--len] = NRF_RNG->VALUE;
+	}
+	nrf_rng_task_trigger(NRF_RNG_TASK_STOP);
+
+	return cnt;
+}
+
 static struct entropy_nrf5_dev_data entropy_nrf5_data;
 static int entropy_nrf5_init(struct device *device);
 
 static const struct entropy_driver_api entropy_nrf5_api_funcs = {
-	.get_entropy = entropy_nrf5_get_entropy
+	.get_entropy = entropy_nrf5_get_entropy,
+	.get_entropy_isr = entropy_nrf5_get_entropy_isr
 };
 
 DEVICE_AND_API_INIT(entropy_nrf5, CONFIG_ENTROPY_NAME,
@@ -305,12 +323,8 @@ static int entropy_nrf5_init(struct device *device)
 	}
 
 	NRF_RNG->EVENTS_VALRDY = 0;
-	NRF_RNG->INTENSET = RNG_INTENSET_VALRDY_Msk;
-
-	NRF_RNG->TASKS_START = 1;
-#if defined(CONFIG_BOARD_NRFXX_NWTSIM)
-	NRF_RNG_regw_sideeffects();
-#endif
+	nrf_rng_int_enable(NRF_RNG_INT_VALRDY_MASK);
+	nrf_rng_task_trigger(NRF_RNG_TASK_START);
 
 	IRQ_CONNECT(NRF5_IRQ_RNG_IRQn, CONFIG_ENTROPY_NRF5_PRI, isr_rand,
 		    DEVICE_GET(entropy_nrf5), 0);
@@ -319,8 +333,9 @@ static int entropy_nrf5_init(struct device *device)
 	return 0;
 }
 
-u8_t entropy_get_entropy_isr(struct device *dev, u8_t *buf, u8_t len)
+u8_t entropy_nrf_get_entropy_isr(struct device *dev, u8_t *buf, u8_t len)
 {
 	ARG_UNUSED(dev);
 	return get((struct rand *)entropy_nrf5_data.isr, len, buf);
 }
+

@@ -442,7 +442,7 @@ static void setup_udp_handler(const struct in6_addr *raddr,
 	zassert_equal(ret, 0, "Cannot register UDP handler");
 }
 
-static void setup(void)
+static void test_setup(void)
 {
 	struct net_if_addr *ifaddr;
 	int idx;
@@ -473,18 +473,16 @@ static void setup(void)
 		zassert_not_null(ifaddr, "addr1");
 	}
 
-	/* For testing purposes we need to set the adddresses preferred */
-	ifaddr->addr_state = NET_ADDR_PREFERRED;
-
 	ifaddr = net_if_ipv6_addr_add(iface1, &ll_addr,
 				      NET_ADDR_MANUAL, 0);
 	if (!ifaddr) {
 		DBG("Cannot add IPv6 address %s\n",
 		       net_sprint_ipv6_addr(&ll_addr));
 		zassert_not_null(ifaddr, "ll_addr");
+	} else {
+		/* we need to set the adddresses preferred */
+		ifaddr->addr_state = NET_ADDR_PREFERRED;
 	}
-
-	ifaddr->addr_state = NET_ADDR_PREFERRED;
 
 	net_if_up(iface1);
 	net_if_up(iface2);
@@ -505,7 +503,7 @@ static void setup(void)
 	test_started = true;
 }
 
-static void find_last_ipv6_fragment_udp(void)
+static void test_find_last_ipv6_fragment_udp(void)
 {
 	u16_t next_hdr_idx = 0;
 	u16_t last_hdr_pos = 0;
@@ -542,7 +540,7 @@ static void find_last_ipv6_fragment_udp(void)
 	net_pkt_unref(pkt);
 }
 
-static void find_last_ipv6_fragment_hbho_udp(void)
+static void test_find_last_ipv6_fragment_hbho_udp(void)
 {
 	u16_t next_hdr_idx = 0;
 	u16_t last_hdr_pos = 0;
@@ -579,7 +577,7 @@ static void find_last_ipv6_fragment_hbho_udp(void)
 	net_pkt_unref(pkt);
 }
 
-static void find_last_ipv6_fragment_hbho_frag(void)
+static void test_find_last_ipv6_fragment_hbho_frag(void)
 {
 	u16_t next_hdr_idx = 0;
 	u16_t last_hdr_pos = 0;
@@ -616,7 +614,7 @@ static void find_last_ipv6_fragment_hbho_frag(void)
 	net_pkt_unref(pkt);
 }
 
-static void send_ipv6_fragment(void)
+static void test_send_ipv6_fragment(void)
 {
 #define MAX_LEN 1600
 	static char data[] = "123456789.";
@@ -683,7 +681,7 @@ static void send_ipv6_fragment(void)
 	}
 }
 
-static void recv_ipv6_fragment(void)
+static void test_recv_ipv6_fragment(void)
 {
 	/* TODO: Verify that we can receive individual fragments and
 	 * then reassemble them back.
@@ -693,12 +691,12 @@ static void recv_ipv6_fragment(void)
 void test_main(void)
 {
 	ztest_test_suite(net_ipv6_fragment_test,
-			 ztest_unit_test(setup),
-			 ztest_unit_test(find_last_ipv6_fragment_udp),
-			 ztest_unit_test(find_last_ipv6_fragment_hbho_udp),
-			 ztest_unit_test(find_last_ipv6_fragment_hbho_frag),
-			 ztest_unit_test(send_ipv6_fragment),
-			 ztest_unit_test(recv_ipv6_fragment)
+			 ztest_unit_test(test_setup),
+			 ztest_unit_test(test_find_last_ipv6_fragment_udp),
+			 ztest_unit_test(test_find_last_ipv6_fragment_hbho_udp),
+			 ztest_unit_test(test_find_last_ipv6_fragment_hbho_frag),
+			 ztest_unit_test(test_send_ipv6_fragment),
+			 ztest_unit_test(test_recv_ipv6_fragment)
 			 );
 
 	ztest_run_test_suite(net_ipv6_fragment_test);
