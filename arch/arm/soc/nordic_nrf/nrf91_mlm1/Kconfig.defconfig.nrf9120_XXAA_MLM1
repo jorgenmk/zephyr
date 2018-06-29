@@ -10,7 +10,7 @@ if SOC_NRF9120_XXAA_MLM1
 
 config SOC
 	string
-	default nRF9120_MLM1
+	default "nRF9120_MLM1"
 
 config NUM_IRQS
 	int

@@ -7,10 +7,10 @@
 
 if SOC_SERIES_NRF91X
 
-source "arch/arm/soc/nordic_nrf/nrf91_mlm1/Kconfig.defconfig.nrf91*"
+gsource "arch/arm/soc/nordic_nrf/nrf91_mlm1/Kconfig.defconfig.nrf91*"
 
 config SOC_SERIES
-	default nrf91_mlm1
+	default "nrf91_mlm1"
 
 config SYS_CLOCK_HW_CYCLES_PER_SEC
 	int
