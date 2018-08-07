@@ -1,0 +1,7 @@
+identifier: nrf9120_mlm1_pca10074
+name: nRF9120-MLM1-PCA10074
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gccarmemb

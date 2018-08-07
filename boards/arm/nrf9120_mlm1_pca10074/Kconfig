@@ -1,0 +1,9 @@
+# Kconfig - nRF91 MLM1 PCA10074 board configuration
+#
+# Copyright (c) 2018 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: Apache-2.0
+
+if BOARD_NRF9120_MLM1_PCA10074
+
+endif # BOARD_NRF9120_MLM1_PCA10074
