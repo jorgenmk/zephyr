@@ -36,13 +36,37 @@
 		reg = <0x20000000 DT_SRAM_SIZE>;
 	};
 
+	sram1: memory@21008000 {
+		device_type = "memory";
+		compatible = "mmio-sram";
+		reg = <0x21008000 DT_SRAM1_SIZE>;
+	};
+
 	soc {
 		uart0: uart@40008000 {
-			compatible = "nordic,nrf-uarte", "nordic,nrf-uart";
+			compatible = "nordic,nrf-uarte";
 			reg = <0x40008000 0x1000>;
 			interrupts = <2 1>;
 			status = "disabled";
 			label = "UART_0";
+		};
+
+		gpiote: gpiote@4000A000 {
+			compatible = "nordic,nrf5-gpiote";
+			reg = <0x4000A000 0x1000>;
+			interrupts = <6 5>;
+			interrupt-names = "gpiote";
+			status = "disabled";
+			label = "GPIOTE_0";
+		};
+
+		gpio0: gpio@40800500 {
+			compatible = "nordic,nrf5-gpio";
+			gpio-controller;
+			reg = <0x40800500 0x200>;
+			#gpio-cells = <2>;
+			label = "GPIO_0";
+			status = "disabled";
 		};
 	};
 };
