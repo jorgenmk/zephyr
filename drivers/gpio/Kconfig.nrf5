@@ -8,7 +8,7 @@
 menuconfig GPIO_NRF5
 	bool "Nordic Semiconductor nRF5x-based GPIO driver"
 	depends on GPIO && SOC_FAMILY_NRF
-	select HAS_DTS_GPIO if SOC_SERIES_NRF52X
+	select HAS_DTS_GPIO if SOC_SERIES_NRF52X  || SOC_SERIES_NRF91X
 	help
 	  Enable GPIO driver for nRF5 line of MCUs.
 
@@ -46,8 +46,10 @@ config GPIOTE_NRF5_IRQ_PRI
 	depends on GPIO_NRF5_P0 || GPIO_NRF5_P1
 	range 0 2 if SOC_SERIES_NRF51X
 	range 0 5 if SOC_SERIES_NRF52X
+	range 0 5 if SOC_SERIES_NRF91X
 	default 2 if SOC_SERIES_NRF51X
 	default 5 if SOC_SERIES_NRF52X
+	default 1 if SOC_SERIES_NRF91X
 	help
 	  nRF5 GPIOTE IRQ priority.
 
@@ -56,8 +58,10 @@ config GPIOTE_NRF5_IRQ
 	depends on GPIO_NRF5_P0 || GPIO_NRF5_P1
 	range 6 6 if SOC_SERIES_NRF51X
 	range 6 6 if SOC_SERIES_NRF52X
+	range 6 6 if SOC_SERIES_NRF91X
 	default 6 if SOC_SERIES_NRF51X
 	default 6 if SOC_SERIES_NRF52X
+	default 6 if SOC_SERIES_NRF91X
 	help
 	  nRF5 GPIOTE IRQ priority.
 
