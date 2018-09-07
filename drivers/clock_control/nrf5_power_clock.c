@@ -103,7 +103,7 @@ hf_already_started:
 	 */
 	__ASSERT_NO_MSG(m16src_ref);
 
-	stat = CLOCK_HFCLKSTAT_SRC_Xtal | CLOCK_HFCLKSTAT_STATE_Msk;
+	stat = NRF_CLOCK_HFCLK_HIGH_ACCURACY | CLOCK_HFCLKSTAT_STATE_Msk;
 	if ((NRF_CLOCK->HFCLKSTAT & stat) == stat) {
 		return 0;
 	} else {
