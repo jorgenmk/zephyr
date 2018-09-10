@@ -46,7 +46,7 @@
 		uart0: uart@40008000 {
 			compatible = "nordic,nrf-uarte";
 			reg = <0x40008000 0x1000>;
-			interrupts = <2 1>;
+			interrupts = <8 1>;
 			status = "disabled";
 			label = "UART_0";
 		};
@@ -54,7 +54,7 @@
 		gpiote: gpiote@4000A000 {
 			compatible = "nordic,nrf-gpiote";
 			reg = <0x4000A000 0x1000>;
-			interrupts = <6 5>;
+			interrupts = <10 5>;
 			interrupt-names = "gpiote";
 			status = "disabled";
 			label = "GPIOTE_0";
