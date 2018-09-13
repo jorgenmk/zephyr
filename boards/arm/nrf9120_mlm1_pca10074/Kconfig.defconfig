@@ -9,20 +9,4 @@ if BOARD_NRF9120_MLM1_PCA10074
 config BOARD
 	default "nrf9120_mlm1_pca10074"
 
-if UART_NRFX
-
-config UART_0_NRF_TX_PIN
-	default 4
-
-config UART_0_NRF_RX_PIN
-	default 6
-
-config UART_0_NRF_RTS_PIN
-	default 3
-
-config UART_0_NRF_CTS_PIN
-	default 5
-
-endif # UART_NRF5
-
 endif # BOARD_NRF9120_MLM1_PCA10074

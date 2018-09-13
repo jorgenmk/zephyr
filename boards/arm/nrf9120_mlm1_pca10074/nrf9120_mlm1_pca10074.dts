@@ -22,6 +22,11 @@
 &uart0 {
 	current-speed = <115200>;
 	status = "ok";
+	tx-pin = <4>;
+	rx-pin = <6>;
+	rts-pin = <3>;
+	cts-pin = <5>;
+
 };
 
 &gpiote {
