@@ -6,7 +6,7 @@
 #
 
 config SOC_NRF9120_MLM1
-	depends on SOC_SERIES_NRF91X
+	depends on SOC_SERIES_NRF91X_MLM1
 	bool
 	select CPU_HAS_FPU
 	select HAS_HW_NRF_CLOCK
@@ -31,7 +31,7 @@ config SOC_NRF9120_MLM1
 
 choice
 prompt "nRF91x MCU Selection"
-depends on SOC_SERIES_NRF91X
+depends on SOC_SERIES_NRF91X_MLM1
 
 config SOC_NRF9120_XXAA_MLM1
 	bool "NRF9120_MLM1"

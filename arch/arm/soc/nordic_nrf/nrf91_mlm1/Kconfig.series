@@ -5,8 +5,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-config  SOC_SERIES_NRF91X
-	bool "Nordic Semiconductor nRF91 series MCU"
+config  SOC_SERIES_NRF91X_MLM1
+	bool "Nordic Semiconductor nRF91 MLM1 series MCU"
 	select CPU_CORTEX_M4
 	select CPU_HAS_MPU
 	select SOC_FAMILY_NRF
@@ -19,4 +19,4 @@ config  SOC_SERIES_NRF91X
 	select HAS_CMSIS
 	select HAS_NRFX
 	help
-	 Enable support for NRF91 MCU series
+	 Enable support for NRF91 MLM1 MCU series
