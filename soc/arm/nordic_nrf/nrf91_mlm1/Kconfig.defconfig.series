@@ -7,7 +7,7 @@
 
 if SOC_SERIES_NRF91X_MLM1
 
-source "arch/arm/soc/nordic_nrf/nrf91_mlm1/Kconfig.defconfig.nrf91*"
+source "soc/arm/nordic_nrf/nrf91_mlm1/Kconfig.defconfig.nrf91*"
 
 config SOC_SERIES
 	default "nrf91_mlm1"
