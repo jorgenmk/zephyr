@@ -1,6 +1,6 @@
 #include <arm/armv8-m.dtsi>
 #include <dt-bindings/gpio/gpio.h>
-#include <nordic/mem.h>
+
 
 / {
 	cpus {
@@ -26,7 +26,7 @@
 			flash0: flash@0 {
 				compatible = "soc-nv-flash";
 				label = "NRF_FLASH";
-				reg = <0x00000000 DT_FLASH_SIZE>;
+				erase-block-size = <4096>;
 				write-block-size = <4>;
 			};
 	};
@@ -34,7 +34,6 @@
 	sram0: memory@20000000 {
 		device_type = "memory";
 		compatible = "mmio-sram";
-		reg = <0x20000000 DT_SRAM_SIZE>;
 	};
 
 	soc {
