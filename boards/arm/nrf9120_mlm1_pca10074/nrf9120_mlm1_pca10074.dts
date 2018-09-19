@@ -6,7 +6,7 @@
  */
 
 /dts-v1/;
-#include <nordic/nrf9120_mlm1.dtsi>
+#include <nordic/nrf9120_mlm1_xxaa.dtsi>
 
 / {
 	model = "Nordic PCA10074 MLM1 Dev Kit";

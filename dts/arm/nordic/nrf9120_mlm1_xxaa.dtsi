@@ -1,0 +1,24 @@
+/*
+ * Copyright (c) 2018 Linaro Limited
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <mem.h>
+#include <nordic/nrf9120_mlm1.dtsi>
+
+/ {
+	flash-controller@40030000 {
+		flash0: flash@0 {
+			reg = <0x00000000 DT_SIZE_K(1024)>;
+		};
+	};
+
+	sram0: memory@20000000 {
+		reg = <0x20000000 DT_SIZE_K(128)>;
+	};
+
+	sram1: memory@21008000 {
+		reg = <0x21008000 DT_SIZE_K(64)>;
+	};
+};
