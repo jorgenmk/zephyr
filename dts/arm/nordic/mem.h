@@ -36,9 +36,6 @@
 #define DT_FLASH_SIZE		__SIZE_K(1024)
 #define DT_SRAM_SIZE		__SIZE_K(128)
 #define DT_SRAM1_SIZE		__SIZE_K(64)
-#elif defined(CONFIG_SOC_NRF9160_XXAA)
-#define DT_FLASH_SIZE		__SIZE_K(1024)
-#define DT_SRAM_SIZE		__SIZE_K(256)
 #else
 #error "Flash and RAM sizes not defined for this chip"
 #endif
