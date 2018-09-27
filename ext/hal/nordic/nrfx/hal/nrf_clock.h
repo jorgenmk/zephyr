@@ -64,7 +64,7 @@ extern "C" {
  */
 typedef enum
 {
-#ifndef NRF9120_XXAA_MLM1
+#if !defined(NRF9120_XXAA_MLM1) && !defined(NRF9160_XXAA)
     NRF_CLOCK_LFCLK_RC    = CLOCK_LFCLKSRC_SRC_RC,    /**< Internal 32 kHz RC oscillator. */
     NRF_CLOCK_LFCLK_Xtal  = CLOCK_LFCLKSRC_SRC_Xtal,  /**< External 32 kHz crystal. */
     NRF_CLOCK_LFCLK_Synth = CLOCK_LFCLKSRC_SRC_Synth, /**< Internal 32 kHz synthesizer from HFCLK system clock. */
@@ -94,7 +94,7 @@ typedef enum
  */
 typedef enum
 {
-#ifndef NRF9120_XXAA_MLM1
+#if !defined(NRF9120_XXAA_MLM1) && !defined(NRF9160_XXAA)
     NRF_CLOCK_HFCLK_LOW_ACCURACY  = CLOCK_HFCLKSTAT_SRC_RC,  /**< Internal 16 MHz RC oscillator. */
     NRF_CLOCK_HFCLK_HIGH_ACCURACY = CLOCK_HFCLKSTAT_SRC_Xtal, /**< External 16 MHz/32 MHz crystal oscillator. */
 #else
@@ -119,7 +119,7 @@ typedef enum
 {
     NRF_CLOCK_INT_HF_STARTED_MASK = CLOCK_INTENSET_HFCLKSTARTED_Msk, /**< Interrupt on HFCLKSTARTED event. */
     NRF_CLOCK_INT_LF_STARTED_MASK = CLOCK_INTENSET_LFCLKSTARTED_Msk, /**< Interrupt on LFCLKSTARTED event. */
-#ifndef NRF9120_XXAA_MLM1
+#if !defined(NRF9120_XXAA_MLM1) && !defined(NRF9160_XXAA)
     NRF_CLOCK_INT_DONE_MASK       = CLOCK_INTENSET_DONE_Msk,         /**< Interrupt on DONE event. */
     NRF_CLOCK_INT_CTTO_MASK       = CLOCK_INTENSET_CTTO_Msk          /**< Interrupt on CTTO event. */
 #endif
@@ -137,7 +137,7 @@ typedef enum /*lint -save -e30 -esym(628,__INTADDR__) */
     NRF_CLOCK_TASK_HFCLKSTOP  = offsetof(NRF_CLOCK_Type, TASKS_HFCLKSTOP),  /**< Stop HFCLK clock source.*/
     NRF_CLOCK_TASK_LFCLKSTART = offsetof(NRF_CLOCK_Type, TASKS_LFCLKSTART), /**< Start LFCLK clock source.*/
     NRF_CLOCK_TASK_LFCLKSTOP  = offsetof(NRF_CLOCK_Type, TASKS_LFCLKSTOP),  /**< Stop LFCLK clock source.*/
-#ifndef NRF9120_XXAA_MLM1
+#if !defined(NRF9120_XXAA_MLM1) && !defined(NRF9160_XXAA)
     NRF_CLOCK_TASK_CAL        = offsetof(NRF_CLOCK_Type, TASKS_CAL),        /**< Start calibration of LFCLK RC oscillator.*/
     NRF_CLOCK_TASK_CTSTART    = offsetof(NRF_CLOCK_Type, TASKS_CTSTART),    /**< Start calibration timer.*/
     NRF_CLOCK_TASK_CTSTOP     = offsetof(NRF_CLOCK_Type, TASKS_CTSTOP)      /**< Stop calibration timer.*/
@@ -151,7 +151,7 @@ typedef enum /*lint -save -e30 -esym(628,__INTADDR__) */
 {
     NRF_CLOCK_EVENT_HFCLKSTARTED = offsetof(NRF_CLOCK_Type, EVENTS_HFCLKSTARTED), /**< HFCLK oscillator started.*/
     NRF_CLOCK_EVENT_LFCLKSTARTED = offsetof(NRF_CLOCK_Type, EVENTS_LFCLKSTARTED), /**< LFCLK oscillator started.*/
-#ifndef NRF9120_XXAA_MLM1
+#if !defined(NRF9120_XXAA_MLM1) && !defined(NRF9160_XXAA)
     NRF_CLOCK_EVENT_DONE         = offsetof(NRF_CLOCK_Type, EVENTS_DONE),         /**< Calibration of LFCLK RC oscillator completed.*/
     NRF_CLOCK_EVENT_CTTO         = offsetof(NRF_CLOCK_Type, EVENTS_CTTO)          /**< Calibration timer time-out.*/
 #endif
@@ -308,7 +308,7 @@ __STATIC_INLINE nrf_clock_start_task_status_t nrf_clock_hf_start_task_status_get
  *
  * @param[in]  interval             New calibration timer interval in 0.25 s resolution (range: 0.25 seconds to 31.75 seconds).
  */
-#ifndef NRF9120_XXAA_MLM1
+#if !defined(NRF9120_XXAA_MLM1) && !defined(NRF9160_XXAA)
 __STATIC_INLINE void nrf_clock_cal_timer_timeout_set(uint32_t interval);
 #endif
 
@@ -412,7 +412,7 @@ __STATIC_INLINE nrf_clock_start_task_status_t nrf_clock_hf_start_task_status_get
                                            CLOCK_HFCLKRUN_STATUS_Pos);
 }
 
-#ifndef NRF9120_XXAA_MLM1
+#if !defined(NRF9120_XXAA_MLM1) && !defined(NRF9160_XXAA)
 __STATIC_INLINE void nrf_clock_cal_timer_timeout_set(uint32_t interval)
 {
     NRF_CLOCK->CTIV = ((interval << CLOCK_CTIV_CTIV_Pos) & CLOCK_CTIV_CTIV_Msk);
