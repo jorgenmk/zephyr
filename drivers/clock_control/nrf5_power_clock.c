@@ -17,7 +17,7 @@
 #include <drivers/clock_control/nrf5_clock_control.h>
 #endif
 
-#if defined(CONFIG_SOC_SERIES_NRF91X_MLM1)
+#if defined(CONFIG_SOC_SERIES_NRF91X_MLM1) || defined(CONFIG_SOC_SERIES_NRF91X)
 #define POWER_CLOCK_IRQn CLOCK_POWER_IRQn
 #endif
 
