@@ -1,0 +1,142 @@
+/*
+ * Copyright (c) 2017 Linaro Limited
+ * Copyright (c) 2018 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+#include <nordic/nrf9160_xxaa.dtsi>
+
+/ {
+	model = "Nordic PCA10090 Dev Kit";
+	compatible = "nordic,pca10090-dk", "nordic,nrf9160-xxaa";
+
+	chosen {
+		zephyr,console = &uart0;
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+	};
+
+	aliases {
+		config-uart-0 = &uart0;
+		config-uart-1 = &uart1;
+		config-gpio-0 = &gpio0;
+		config-gpiote = &gpiote;
+		led0 = &led0;
+		led1 = &led1;
+		led2 = &led2;
+		led3 = &led3;
+		sw0 = &button2;
+		sw1 = &button3;
+		sw2 = &button0;
+		sw3 = &button1;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led0: led@0 {
+			gpios = <&gpio0 2 GPIO_INT_ACTIVE_LOW>;
+			label = "Green LED 0";
+		};
+		led1: led@1 {
+			gpios = <&gpio0 3 GPIO_INT_ACTIVE_LOW>;
+			label = "Green LED 1";
+		};
+		led2: led@2 {
+			gpios = <&gpio0 4 GPIO_INT_ACTIVE_LOW>;
+			label = "Green LED 2";
+		};
+		led3: led@3 {
+			gpios = <&gpio0 5 GPIO_INT_ACTIVE_LOW>;
+			label = "Green LED 3";
+		};
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button0: button@0 {
+			gpios = <&gpio0 8 GPIO_PUD_PULL_UP>;
+			label = "Switch 1";
+		};
+		button1: button@1 {
+			gpios = <&gpio0 9 GPIO_PUD_PULL_UP>;
+			label = "Switch 2";
+		};
+		button2: button@2 {
+			gpios = <&gpio0 6 GPIO_PUD_PULL_UP>;
+			label = "Push button 1";
+		};
+		button3: button@3 {
+			gpios = <&gpio0 7 GPIO_PUD_PULL_UP>;
+			label = "Push button 2";
+		};
+	};
+
+};
+
+&uart0 {
+	current-speed = <115200>;
+	status = "ok";
+	tx-pin = <29>;
+	rx-pin = <28>;
+	rts-pin = <27>;
+	cts-pin = <26>;
+};
+
+&uart1 {
+	current-speed = <115200>;
+	status = "ok";
+	tx-pin = <1>;
+	rx-pin = <0>;
+	rts-pin = <14>;
+	cts-pin = <15>;
+};
+
+&gpiote {
+	status = "ok";
+};
+
+&gpio0 {
+	status = "ok";
+};
+
+&flash0 {
+	/*
+	 * For more information, see:
+	 * http://docs.zephyrproject.org/devices/dts/flash_partitions.html
+	 */
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 0xc000>;
+		};
+		slot0_partition: partition@c000 {
+			label = "image-0";
+			reg = <0x0000C000 0x32000>;
+		};
+		slot1_partition: partition@3e000 {
+			label = "image-1";
+			reg = <0x0003E000 0x32000>;
+		};
+		scratch_partition: partition@70000 {
+			label = "image-scratch";
+			reg = <0x00070000 0xa000>;
+		};
+
+#if defined(CONFIG_FILE_SYSTEM_NFFS)
+		nffs_partition: partition@7a000 {
+			label = "nffs";
+			reg = <0x0007a000 0x00006000>;
+		};
+#endif
+	};
+};
+
+
