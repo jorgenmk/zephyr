@@ -82,6 +82,10 @@
 #define NRF91_IRQ_MWU_IRQn                     1
 #define NRF91_IRQ_IPC_IRQn                     25
 
+#elif defined(CONFIG_SOC_NRF9160)
+
+/* for the 9160 interrupts are defined in the device tree */
+
 #else
 #error "Platform not defined."
 #endif
