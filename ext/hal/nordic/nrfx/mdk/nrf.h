@@ -53,7 +53,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 /* Define NRF91_SERIES for common use in nRF91 series devices. */
-#if defined (NRF9120_XXAA_MLM1) || defined (NRF9120_XXAA)
+#if defined (NRF9120_XXAA_MLM1) || defined (NRF9160_XXAA)
     #ifndef NRF91_SERIES
         #define NRF91_SERIES
     #endif
@@ -90,17 +90,17 @@ POSSIBILITY OF SUCH DAMAGE.
         #include "nrf51_to_nrf52840.h"
         #include "nrf52_to_nrf52840.h"
     
-    #elif defined (NRF9120_XXAA)
-        #include "nrf9120.h"
-        #include "nrf9120_bitfields.h"
-        #include "nrf52_to_nrf9120.h"
+    #elif defined (NRF9160_XXAA)
+        #include "nrf9160.h"
+        #include "nrf9160_bitfields.h"
+        #include "nrf52_to_nrf9160.h"
     #elif defined (NRF9120_XXAA_MLM1)
         #include "nrf9120_mlm1.h"
         #include "nrf9120_mlm1_bitfields.h"
         #include "nrf52_to_nrf9120.h"
     #else
         #error "Device must be defined. See nrf.h."
-    #endif /* NRF51, NRF52832_XXAA, NRF52832_XXAB, NRF52810_XXAA, NRF52840_XXAA, NRF9120_XXAA, NRF9120_XXAA_MLM1 */
+    #endif /* NRF51, NRF52832_XXAA, NRF52832_XXAB, NRF52810_XXAA, NRF52840_XXAA, NRF9120_XXAA_MLM1, NRF9160_XXAA */
 
     #include "compiler_abstraction.h"
 
