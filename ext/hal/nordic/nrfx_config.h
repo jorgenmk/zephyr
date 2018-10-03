@@ -43,6 +43,8 @@
     #include <nrfx_config_nrf52840.h>
 #elif defined(NRF9120_XXAA_MLM1)
     #include <nrfx_config_nrf9120.h>
+#elif defined(NRF9160_XXAA)
+    #include <nrfx_config_nrf9160.h>
 #else
     #error "Unknown device."
 #endif
