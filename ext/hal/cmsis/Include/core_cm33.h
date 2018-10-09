@@ -205,7 +205,8 @@
 
 #include "cmsis_compiler.h"               /* CMSIS compiler specific defines */
 
-
+#undef __ARM_FEATURE_CMSE
+#define __ARM_FEATURE_CMSE 3
 #ifdef __cplusplus
 }
 #endif

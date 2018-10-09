@@ -129,7 +129,7 @@ typedef enum {
 #define __MPU_PRESENT                  1        /*!< MPU present or not                                                        */
 #define __FPU_PRESENT                  1        /*!< FPU present or not                                                        */
 #define __FPU_DP                       0        /*!< Double Precision FPU                                                      */
-#define __SAU_REGION_PRESENT           0        /*!< SAU present or not                                                        */
+#define __SAU_REGION_PRESENT           1        /*!< SAU present or not                                                        */
 #define __DSP_PRESENT                  1        /*!< DSP                                                                       */
 
 

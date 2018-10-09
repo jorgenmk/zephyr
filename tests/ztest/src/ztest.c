@@ -206,7 +206,7 @@ static int run_test(struct unit_test *test)
 	k_thread_create(&ztest_thread, ztest_thread_stack,
 			K_THREAD_STACK_SIZEOF(ztest_thread_stack),
 			(k_thread_entry_t) test_cb, (struct unit_test *)test,
-			NULL, NULL, -1, test->thread_options | K_INHERIT_PERMS,
+			NULL, NULL, 4, test->thread_options | K_INHERIT_PERMS,
 			0);
 	/*
 	 * There is an implicit expectation here that the thread that was
